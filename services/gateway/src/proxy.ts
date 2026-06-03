@@ -43,7 +43,13 @@ export function makeProxy(target: string): RequestHandler {
       if (key !== 'content-encoding' && key !== 'transfer-encoding') res.setHeader(key, val);
     });
     if (upstream.body) {
-      Readable.fromWeb(upstream.body as Parameters<typeof Readable.fromWeb>[0]).pipe(res);
+      const upstreamStream = Readable.fromWeb(
+        upstream.body as Parameters<typeof Readable.fromWeb>[0],
+      );
+      // Never let a mid-stream upstream error or a client disconnect crash the gateway.
+      upstreamStream.on('error', () => res.destroy());
+      res.on('close', () => upstreamStream.destroy());
+      upstreamStream.pipe(res);
     } else {
       res.end();
     }
