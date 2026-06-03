@@ -10,7 +10,7 @@ import { fakeXPayment } from './helpers/signPayment.js';
 const PAY_TO = '0x000000000000000000000000000000000000beef';
 const RICH = '0x000000000000000000000000000000000000a11ce';
 const POOR = '0x0000000000000000000000000000000000000dead';
-const price: AgentPrice = { costPerThink: '10000', payTo: PAY_TO, asset: '0xusdc', network: 'base-sepolia' };
+const price: AgentPrice = { costPerThink: '10000', payTo: PAY_TO, asset: '0xusdc', network: 'eip155:84532' };
 
 let upstream: StubUpstream;
 

@@ -7,7 +7,7 @@ import { staticResolver, type AgentPrice } from '../src/pricing.js';
 import { encodePayment, type PaymentPayload } from '../src/x402.js';
 import type { Facilitator } from '../src/facilitatorClient.js';
 
-const price: AgentPrice = { costPerThink: '10000', payTo: '0xbeef', asset: '0xusdc', network: 'base-sepolia' };
+const price: AgentPrice = { costPerThink: '10000', payTo: '0xbeef', asset: '0xusdc', network: 'eip155:84532' };
 
 function buildApp(facilitator: Facilitator) {
   const queue = new SettlementQueue(facilitator, { maxBatch: 100, maxWaitMs: 60000 });
@@ -21,7 +21,7 @@ function buildApp(facilitator: Facilitator) {
 }
 
 const payment = (): string =>
-  encodePayment({ x402Version: 1, scheme: 'exact', network: 'base-sepolia', payload: { signature: '0xsig', authorization: { from: '0xa', to: '0xbeef', value: '10000', validAfter: '0', validBefore: '9999999999', nonce: '0x1' } } } as PaymentPayload);
+  encodePayment({ x402Version: 2, scheme: 'exact', network: 'eip155:84532', payload: { signature: '0xsig', authorization: { from: '0xa', to: '0xbeef', value: '10000', validAfter: '0', validBefore: '9999999999', nonce: '0x1' } } } as PaymentPayload);
 
 describe('paymentMiddleware', () => {
   it('returns 402 with accepts when no X-PAYMENT', async () => {
@@ -29,7 +29,7 @@ describe('paymentMiddleware', () => {
     const { app } = buildApp(facilitator);
     const res = await request(app).post('/v1/chat/completions').send({ messages: [] });
     expect(res.status).toBe(402);
-    expect(res.body.x402Version).toBe(1);
+    expect(res.body.x402Version).toBe(2);
     expect(res.body.accepts[0].maxAmountRequired).toBe('10000');
     expect(res.body.accepts[0].payTo).toBe('0xbeef');
   });

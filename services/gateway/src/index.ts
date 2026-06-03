@@ -13,7 +13,7 @@ const price: AgentPrice = {
   costPerThink: env('DEFAULT_COST_PER_THINK', '10000'),
   payTo: env('GATEWAY_TREASURY_ADDRESS'),
   asset: env('USDC_ADDRESS', '0x036CbD53842c5426634e7929541eC2318f3dCF7e'),
-  network: env('X402_NETWORK', 'base-sepolia'),
+  network: env('X402_NETWORK', 'eip155:84532'),
 };
 
 const facilitator = httpFacilitator(env('FACILITATOR_URL', 'http://127.0.0.1:8403'));

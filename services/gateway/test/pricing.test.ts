@@ -5,7 +5,7 @@ const price: AgentPrice = {
   costPerThink: '10000', // 0.01 USDC (6dec)
   payTo: '0x000000000000000000000000000000000000dEaD',
   asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-  network: 'base-sepolia',
+  network: 'eip155:84532',
 };
 
 describe('pricing', () => {
@@ -28,7 +28,7 @@ describe('pricing', () => {
     const req = buildPaymentRequirements(price, 'http://gw.local/v1/chat/completions');
     expect(req).toMatchObject({
       scheme: 'exact',
-      network: 'base-sepolia',
+      network: 'eip155:84532',
       maxAmountRequired: '10000',
       payTo: price.payTo,
       asset: price.asset,

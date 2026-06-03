@@ -4,7 +4,7 @@ export interface AgentPrice {
   costPerThink: string; // atomic USDC (6dec) decimal string
   payTo: string; // gateway treasury
   asset: string; // USDC address
-  network: string; // "base-sepolia"
+  network: string; // CAIP-2 "eip155:84532"
 }
 
 export type PriceResolver = (agentId: string) => AgentPrice | undefined;

@@ -3,8 +3,8 @@ import { SettlementQueue, type QueueItem } from '../src/settlementQueue.js';
 import type { Facilitator } from '../src/facilitatorClient.js';
 
 const item = (n: number): QueueItem => ({
-  payload: { x402Version: 1, scheme: 'exact', network: 'base-sepolia', payload: { signature: '0x' + n, authorization: { from: '0xa', to: '0xb', value: '1', validAfter: '0', validBefore: '9', nonce: '0x' + n } } },
-  requirements: { scheme: 'exact', network: 'base-sepolia', maxAmountRequired: '10000', resource: 'r', description: 'd', mimeType: 'application/json', payTo: '0xb', maxTimeoutSeconds: 120, asset: '0xusdc' },
+  payload: { x402Version: 2, scheme: 'exact', network: 'eip155:84532', payload: { signature: '0x' + n, authorization: { from: '0xa', to: '0xb', value: '1', validAfter: '0', validBefore: '9', nonce: '0x' + n } } },
+  requirements: { scheme: 'exact', network: 'eip155:84532', maxAmountRequired: '10000', resource: 'r', description: 'd', mimeType: 'application/json', payTo: '0xb', maxTimeoutSeconds: 120, asset: '0xusdc' },
 });
 
 function fakeFacilitator() {

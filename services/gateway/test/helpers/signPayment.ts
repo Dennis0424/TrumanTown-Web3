@@ -4,9 +4,9 @@ import { encodePayment, type PaymentPayload } from '../../src/x402.js';
  *  mock facilitator decides validity by `from`). */
 export function fakeXPayment(from: string, payTo: string, value = '10000'): string {
   const payload: PaymentPayload = {
-    x402Version: 1,
+    x402Version: 2,
     scheme: 'exact',
-    network: 'base-sepolia',
+    network: 'eip155:84532',
     payload: {
       signature: '0x' + Math.random().toString(16).slice(2),
       authorization: { from, to: payTo, value, validAfter: '0', validBefore: '9999999999', nonce: '0x' + Math.random().toString(16).slice(2) },
