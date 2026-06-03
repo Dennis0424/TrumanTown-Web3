@@ -40,9 +40,10 @@ export function decodeXPayment(header: string): PaymentPayload {
   if (
     !p ||
     typeof p.x402Version !== 'number' ||
+    p.x402Version !== X402_VERSION ||
     p.scheme !== 'exact' ||
     typeof p.network !== 'string' ||
-    p.payload === undefined
+    p.payload == null
   ) {
     throw new Error('X-PAYMENT missing required fields');
   }

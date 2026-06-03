@@ -34,4 +34,12 @@ describe('x402 v2 payment header', () => {
     const bad = Buffer.from(JSON.stringify({ x402Version: 2 }), 'utf8').toString('base64');
     expect(() => decodeXPayment(bad)).toThrow();
   });
+
+  it('throws on a well-formed payload with the wrong x402Version', () => {
+    const bad = Buffer.from(
+      JSON.stringify({ x402Version: 1, scheme: 'exact', network: 'eip155:84532', payload: {} }),
+      'utf8',
+    ).toString('base64');
+    expect(() => decodeXPayment(bad)).toThrow();
+  });
 });
