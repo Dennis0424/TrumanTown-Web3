@@ -42,7 +42,13 @@ export function createCdpWalletProvider(c: CdpWalletConfig): WalletProvider {
       return c.sendSmartAccountCall(cfg, { to: token, functionName: 'sell', args: [tokensIn, minUsdcOut] });
     },
     async transferUsdc(cfg, source, to, amount) {
-      void source;
+      // SP1 only ever sweeps smart->eoa, so only the smart-account source is wired here
+      // (gasless via paymaster). An 'eoa'-sourced transfer needs a CDP EOA send, added in
+      // Plan 5 — reject it explicitly rather than silently routing from the smart account
+      // and misrouting funds.
+      if (source === 'eoa') {
+        throw new Error("transferUsdc(source:'eoa') not implemented in SP1 — wire CDP EOA send in Plan 5");
+      }
       return c.sendSmartAccountCall(cfg, { to: c.usdcAddress, functionName: 'transfer', args: [getAddress(to), amount] });
     },
     async fund(cfg, target, asset) {
