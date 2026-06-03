@@ -33,4 +33,21 @@ describe('x402 payment header', () => {
     const bad = Buffer.from(JSON.stringify({ x402Version: 1 }), 'utf8').toString('base64');
     expect(() => decodePayment(bad)).toThrow();
   });
+
+  it('throws on wrong x402Version', () => {
+    const bad = Buffer.from(
+      JSON.stringify({ ...sample, x402Version: 2 }),
+      'utf8',
+    ).toString('base64');
+    expect(() => decodePayment(bad)).toThrow();
+  });
+
+  it('throws when an authorization field is missing', () => {
+    const partial = {
+      ...sample,
+      payload: { signature: '0xsig', authorization: { from: '0x1', to: '0x2' } },
+    };
+    const bad = Buffer.from(JSON.stringify(partial), 'utf8').toString('base64');
+    expect(() => decodePayment(bad)).toThrow();
+  });
 });

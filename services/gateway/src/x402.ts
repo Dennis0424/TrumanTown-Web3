@@ -1,6 +1,6 @@
 // x402 wire protocol v1 — local mirror of the `exact` (EIP-3009) scheme shapes.
-// If the installed `x402` package exports equivalents, these may be replaced by
-// `export type { PaymentRequirements, PaymentPayload } from 'x402/types'`.
+// Local types are intentional — SP1 does not depend on the x402 npm package.
+// They mirror x402 v1 wire shapes for interoperability.
 
 export const X402_VERSION = 1 as const;
 
@@ -51,6 +51,8 @@ export function encodePayment(p: PaymentPayload): string {
   return Buffer.from(JSON.stringify(p), 'utf8').toString('base64');
 }
 
+const AUTH_KEYS = ['from', 'to', 'value', 'validAfter', 'validBefore', 'nonce'] as const;
+
 export function decodePayment(header: string): PaymentPayload {
   let parsed: unknown;
   try {
@@ -61,12 +63,13 @@ export function decodePayment(header: string): PaymentPayload {
   const p = parsed as PaymentPayload;
   if (
     !p ||
+    p.x402Version !== X402_VERSION ||
     p.scheme !== 'exact' ||
     typeof p.network !== 'string' ||
     !p.payload ||
     typeof p.payload.signature !== 'string' ||
     !p.payload.authorization ||
-    typeof p.payload.authorization.from !== 'string'
+    AUTH_KEYS.some((k) => typeof (p.payload.authorization as unknown as Record<string, unknown>)[k] !== 'string')
   ) {
     throw new Error('X-PAYMENT missing required exact-scheme fields');
   }
