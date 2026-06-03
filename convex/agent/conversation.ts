@@ -7,6 +7,8 @@ import { api, internal } from '../_generated/api';
 import * as embeddingsCache from './embeddingsCache';
 import { GameId, conversationId, playerId } from '../aiTown/ids';
 import { NUM_MEMORIES_TO_SEARCH } from '../constants';
+import { buildSurvivalGoalStack, type SurvivalPerception } from '../economy/goalStack';
+import type { ChatCompletionOpts } from '../util/llm';
 
 const selfInternal = internal.agent.conversation;
 
@@ -17,7 +19,7 @@ export async function startConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
-  const { player, otherPlayer, agent, otherAgent, lastConversation } = await ctx.runQuery(
+  const { player, otherPlayer, agent, otherAgent, lastConversation, economy } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
       worldId,
@@ -52,19 +54,23 @@ export async function startConversationMessage(
       `Be sure to include some detail or question about a previous conversation in your greeting.`,
     );
   }
+  prompt.push(...survivalPrompt(economy));
   const lastPrompt = `${player.name} to ${otherPlayer.name}:`;
   prompt.push(lastPrompt);
 
-  const { content } = await chatCompletion({
-    messages: [
-      {
-        role: 'system',
-        content: prompt.join('\n'),
-      },
-    ],
-    max_tokens: 300,
-    stop: stopWords(otherPlayer.name, player.name),
-  });
+  const { content } = await chatCompletion(
+    {
+      messages: [
+        {
+          role: 'system',
+          content: prompt.join('\n'),
+        },
+      ],
+      max_tokens: 300,
+      stop: stopWords(otherPlayer.name, player.name),
+    },
+    economyOpts(economy),
+  );
   return trimContentPrefx(content, lastPrompt);
 }
 
@@ -82,7 +88,7 @@ export async function continueConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
-  const { player, otherPlayer, conversation, agent, otherAgent } = await ctx.runQuery(
+  const { player, otherPlayer, conversation, agent, otherAgent, economy } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
       worldId,
@@ -108,6 +114,7 @@ export async function continueConversationMessage(
     `Below is the current chat history between you and ${otherPlayer.name}.`,
     `DO NOT greet them again. Do NOT use the word "Hey" too often. Your response should be brief and within 200 characters.`,
   );
+  prompt.push(...survivalPrompt(economy));
 
   const llmMessages: LLMMessage[] = [
     {
@@ -125,11 +132,14 @@ export async function continueConversationMessage(
   const lastPrompt = `${player.name} to ${otherPlayer.name}:`;
   llmMessages.push({ role: 'user', content: lastPrompt });
 
-  const { content } = await chatCompletion({
-    messages: llmMessages,
-    max_tokens: 300,
-    stop: stopWords(otherPlayer.name, player.name),
-  });
+  const { content } = await chatCompletion(
+    {
+      messages: llmMessages,
+      max_tokens: 300,
+      stop: stopWords(otherPlayer.name, player.name),
+    },
+    economyOpts(economy),
+  );
   return trimContentPrefx(content, lastPrompt);
 }
 
@@ -140,7 +150,7 @@ export async function leaveConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
-  const { player, otherPlayer, conversation, agent, otherAgent } = await ctx.runQuery(
+  const { player, otherPlayer, conversation, agent, otherAgent, economy } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
       worldId,
@@ -158,6 +168,7 @@ export async function leaveConversationMessage(
     `Below is the current chat history between you and ${otherPlayer.name}.`,
     `How would you like to tell them that you're leaving? Your response should be brief and within 200 characters.`,
   );
+  prompt.push(...survivalPrompt(economy));
   const llmMessages: LLMMessage[] = [
     {
       role: 'system',
@@ -174,11 +185,14 @@ export async function leaveConversationMessage(
   const lastPrompt = `${player.name} to ${otherPlayer.name}:`;
   llmMessages.push({ role: 'user', content: lastPrompt });
 
-  const { content } = await chatCompletion({
-    messages: llmMessages,
-    max_tokens: 300,
-    stop: stopWords(otherPlayer.name, player.name),
-  });
+  const { content } = await chatCompletion(
+    {
+      messages: llmMessages,
+      max_tokens: 300,
+      stop: stopWords(otherPlayer.name, player.name),
+    },
+    economyOpts(economy),
+  );
   return trimContentPrefx(content, lastPrompt);
 }
 
@@ -330,6 +344,10 @@ export const queryPromptData = internalQuery({
         throw new Error(`Conversation ${lastTogether.conversationId} not found`);
       }
     }
+    const economy = await ctx.db
+      .query('agentEconomy')
+      .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('agentId', agent.id))
+      .first();
     return {
       player: { name: playerDescription.name, ...player },
       otherPlayer: { name: otherPlayerDescription.name, ...otherPlayer },
@@ -341,6 +359,7 @@ export const queryPromptData = internalQuery({
         ...otherAgent,
       },
       lastConversation,
+      economy,
     };
   },
 });
@@ -349,4 +368,29 @@ function stopWords(otherPlayer: string, player: string) {
   // These are the words we ask the LLM to stop on. OpenAI only supports 4.
   const variants = [`${otherPlayer} to ${player}`];
   return variants.flatMap((stop) => [stop + ':', stop.toLowerCase() + ':']);
+}
+
+type EconomyRow = {
+  econAgentId: string;
+  eoa: string;
+  energy: number;
+  marketCap: string;
+  status: 'alive' | 'starving' | 'dead';
+} | null | undefined;
+
+/** Survival goal-stack lines for the agent's prompt (empty when no economy row yet). */
+function survivalPrompt(economy: EconomyRow): string[] {
+  if (!economy) return [];
+  const perception: SurvivalPerception = {
+    energy: economy.energy,
+    marketCap: economy.marketCap,
+    status: economy.status,
+  };
+  return buildSurvivalGoalStack(perception);
+}
+
+/** Per-call economy opts so chatCompletion can pay as this agent and short-circuit if dead. */
+function economyOpts(economy: EconomyRow): ChatCompletionOpts | undefined {
+  if (!economy) return undefined;
+  return { agentId: economy.econAgentId, eoaAddress: economy.eoa, dead: economy.status === 'dead' };
 }

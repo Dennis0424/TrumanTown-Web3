@@ -1,5 +1,6 @@
 import { cronJobs } from 'convex/server';
 import { DELETE_BATCH_SIZE, IDLE_WORLD_TIMEOUT, VACUUM_MAX_AGE } from './constants';
+import { ECONOMIC_TICK_SECONDS } from './economy/constants';
 import { internal } from './_generated/api';
 import { internalMutation } from './_generated/server';
 import { TableNames } from './_generated/dataModel';
@@ -14,6 +15,12 @@ crons.interval(
 );
 
 crons.interval('restart dead worlds', { seconds: 60 }, internal.world.restartDeadWorlds);
+
+crons.interval(
+  'economic tick',
+  { seconds: ECONOMIC_TICK_SECONDS },
+  internal.economy.tick.runEconomicTick,
+);
 
 crons.daily('vacuum old entries', { hourUTC: 4, minuteUTC: 20 }, internal.crons.vacuumOldEntries);
 

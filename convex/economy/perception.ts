@@ -1,0 +1,63 @@
+import { v } from 'convex/values';
+import { internalMutation, internalQuery } from '../_generated/server';
+import { agentId } from '../aiTown/ids';
+
+/**
+ * SP1 maps the single ai-town agent of the default world to economic agentId "0".
+ * Returns null when no running default world / no agent exists yet (tick then no-ops).
+ */
+export const getDefaultWorldAgent = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const status = await ctx.db
+      .query('worldStatus')
+      .filter((q) => q.eq(q.field('isDefault'), true))
+      .first();
+    if (!status) return null;
+    const world = await ctx.db.get(status.worldId);
+    if (!world) return null;
+    const firstAgent = world.agents[0];
+    if (!firstAgent) return null;
+    return { worldId: status.worldId, agentId: firstAgent.id };
+  },
+});
+
+export const getAgentEconomy = internalQuery({
+  args: { worldId: v.id('worlds'), agentId },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query('agentEconomy')
+      .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('agentId', args.agentId))
+      .first();
+  },
+});
+
+export const upsertAgentEconomy = internalMutation({
+  args: {
+    worldId: v.id('worlds'),
+    agentId,
+    econAgentId: v.string(),
+    eoa: v.string(),
+    eoaUsdc: v.string(),
+    smartUsdc: v.string(),
+    tokenBalance: v.string(),
+    marketCap: v.string(),
+    energy: v.number(),
+    lastPerceivedAt: v.number(),
+    status: v.union(v.literal('alive'), v.literal('starving'), v.literal('dead')),
+    starvingPeriods: v.number(),
+    starvingSince: v.optional(v.number()),
+    diedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('agentEconomy')
+      .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('agentId', args.agentId))
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, args);
+    } else {
+      await ctx.db.insert('agentEconomy', args);
+    }
+  },
+});
