@@ -1576,6 +1576,15 @@ git commit -m "feat(executor): assemble Express app + e2e (sign-payment/actions/
 
 > 本任务是唯一依赖 CDP 云端密钥与真链的部分，**不进 `npm test`**。参考代码按 Task 0 Step 7 核对到的导出绑定；若实际 API 名不同，就地调整。**LIVE 冒烟是「产出的 X-PAYMENT 能被真 facilitator 验过」的最终真相检验。**
 
+> **⚠ 执行期校正（已落地）：** 计划起草时参考了**裸包 `x402`**（npm 最新 1.2.0），但实测该包**仅支持
+> 协议 v1 / 字符串网络名**（`x402Versions=[1]`），无法产出 v2/`eip155:84532` 载荷。正确的 v2 客户端是
+> Coinbase 官方**作用域包** **`@x402/core` + `@x402/evm`**（2.14.0，与自托管 facilitator 同源）：
+> `new x402Client()` → `registerExactEvmScheme(client, { signer })`（`@x402/evm/exact/client`，注册 v2 `eip155:*`
+> exact 方案）→ `x402HTTPClient.createPaymentPayload()` + `encodePaymentSignatureHeader()` 出 X-PAYMENT。
+> CDP `EvmServerAccount` 直接满足 x402 的 `ClientEvmSigner`（含 `address`/`signTypedData`），无需转换。
+> 故 Task 9 的实现用 `@x402/core`+`@x402/evm`（**非**下方参考代码里的裸 `x402`），其余结构不变；真链验证仍由
+> LIVE 冒烟在计划5 完成。
+
 **Files:**
 - Create: `services/executor/src/cdpWalletProvider.ts`, `services/executor/src/x402Signer.ts`, `services/executor/src/cdpClient.ts`
 - Create: `services/executor/test/live/verify.live.ts`
