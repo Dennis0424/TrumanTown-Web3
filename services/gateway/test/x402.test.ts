@@ -4,7 +4,7 @@ import { encodePayment, decodePayment, X402_VERSION, type PaymentPayload } from 
 const sample: PaymentPayload = {
   x402Version: X402_VERSION,
   scheme: 'exact',
-  network: 'base-sepolia',
+  network: 'eip155:84532',
   payload: {
     signature: '0xdeadbeef',
     authorization: {
@@ -36,7 +36,7 @@ describe('x402 payment header', () => {
 
   it('throws on wrong x402Version', () => {
     const bad = Buffer.from(
-      JSON.stringify({ ...sample, x402Version: 2 }),
+      JSON.stringify({ ...sample, x402Version: 1 }),
       'utf8',
     ).toString('base64');
     expect(() => decodePayment(bad)).toThrow();

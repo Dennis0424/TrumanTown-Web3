@@ -1,12 +1,12 @@
-// x402 wire protocol v1 — local mirror of the `exact` (EIP-3009) scheme shapes.
+// x402 wire protocol v2 — local mirror of the `exact` (EIP-3009) scheme shapes.
 // Local types are intentional — SP1 does not depend on the x402 npm package.
-// They mirror x402 v1 wire shapes for interoperability.
+// They mirror x402 v2 wire shapes for interoperability.
 
-export const X402_VERSION = 1 as const;
+export const X402_VERSION = 2 as const;
 
 export interface PaymentRequirements {
   scheme: 'exact';
-  network: string; // e.g. "base-sepolia"
+  network: string; // CAIP-2, e.g. "eip155:84532"
   maxAmountRequired: string; // atomic USDC (6dec) as decimal string, e.g. "10000"
   resource: string;
   description: string;

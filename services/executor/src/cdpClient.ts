@@ -1,0 +1,119 @@
+import { encodeFunctionData, getAddress } from 'viem';
+import { CdpClient } from '@coinbase/cdp-sdk';
+import type { AgentConfig } from './config.js';
+
+const ERC20_WRITE_ABI = [
+  { type: 'function', name: 'approve', stateMutability: 'nonpayable', inputs: [{ name: 's', type: 'address' }, { name: 'v', type: 'uint256' }], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'transfer', stateMutability: 'nonpayable', inputs: [{ name: 't', type: 'address' }, { name: 'v', type: 'uint256' }], outputs: [{ type: 'bool' }] },
+] as const;
+const AGENT_TOKEN_WRITE_ABI = [
+  { type: 'function', name: 'buy', stateMutability: 'nonpayable', inputs: [{ name: 'usdcIn', type: 'uint256' }, { name: 'minTokensOut', type: 'uint256' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'sell', stateMutability: 'nonpayable', inputs: [{ name: 'tokensIn', type: 'uint256' }, { name: 'minUsdcOut', type: 'uint256' }], outputs: [{ type: 'uint256' }] },
+] as const;
+
+const NETWORK = 'base-sepolia' as const; // CDP faucet/user-op network name for Base Sepolia (eip155:84532)
+
+export interface CdpHooksConfig {
+  apiKeyId: string;
+  apiKeySecret: string;
+  walletSecret: string;
+  rpcUrl: string;
+  agents: AgentConfig[];
+  usdcAddress: string;
+}
+
+export interface CdpHooks {
+  sendSmartAccountCall(
+    cfg: AgentConfig,
+    call: { to: string; functionName: 'buy' | 'sell' | 'approve' | 'transfer'; args: unknown[] },
+  ): Promise<string>;
+  faucetTo(address: string, asset: 'usdc' | 'eth'): Promise<string>;
+  eoaAccountFor(eoa: string): Promise<unknown>;
+}
+
+/**
+ * CDP smart-wallet adapter (cloud-coupled, NOT unit-tested — verified by the Plan-5 LIVE smoke).
+ *
+ * Bound (verify-then-adapt) to @coinbase/cdp-sdk@1.51.0:
+ *   - `new CdpClient({ apiKeyId, apiKeySecret, walletSecret })`
+ *   - per agent: `cdp.evm.getOrCreateAccount({ name })` → EvmServerAccount (EOA),
+ *     then `cdp.evm.getOrCreateSmartAccount({ name, owner: eoa })` → EvmSmartAccount.
+ *   - gasless write: `cdp.evm.sendUserOperation({ smartAccount, network, calls: [{ to, data }] })`,
+ *     calldata built with viem `encodeFunctionData`; returns `{ userOpHash }`.
+ *   - faucet: `cdp.evm.requestFaucet({ address, network, token })` → `{ transactionHash }`.
+ *   - eoaAccountFor: returns the EvmServerAccount itself — it implements EvmAccount
+ *     (`address` + `signTypedData`/`signMessage`/`sign`), i.e. it IS a viem-compatible
+ *     signer satisfying x402's ClientEvmSigner. No separate toViem conversion needed.
+ *
+ * Accounts are deterministically named per agentId and cached so the EOA/smart-account
+ * pair is stable across hooks (the smart account's owner must be the SAME EOA the x402
+ * signer signs with).
+ */
+export async function buildCdpHooks(c: CdpHooksConfig): Promise<CdpHooks> {
+  const cdp = new CdpClient({
+    apiKeyId: c.apiKeyId,
+    apiKeySecret: c.apiKeySecret,
+    walletSecret: c.walletSecret,
+  });
+
+  const usdc = getAddress(c.usdcAddress);
+
+  // Cache EOA + smart account per agentId (keyed by lowercased EOA address for lookups).
+  const eoaByAddress = new Map<string, unknown>();
+  const smartByEoa = new Map<string, unknown>();
+
+  async function ensureAgent(cfg: AgentConfig): Promise<{ eoa: unknown; smartAccount: unknown }> {
+    const eoaKey = cfg.eoa.toLowerCase();
+    let eoa = eoaByAddress.get(eoaKey);
+    let smartAccount = smartByEoa.get(eoaKey);
+    if (eoa && smartAccount) return { eoa, smartAccount };
+
+    eoa = await cdp.evm.getOrCreateAccount({ name: `trumantown-agent-${cfg.agentId}-eoa` });
+    smartAccount = await cdp.evm.getOrCreateSmartAccount({
+      name: `trumantown-agent-${cfg.agentId}-smart`,
+      owner: eoa as never,
+    });
+    eoaByAddress.set(eoaKey, eoa);
+    smartByEoa.set(eoaKey, smartAccount);
+    return { eoa, smartAccount };
+  }
+
+  return {
+    async sendSmartAccountCall(cfg, call) {
+      const { smartAccount } = await ensureAgent(cfg);
+      const to = getAddress(call.to);
+      const data =
+        call.functionName === 'buy' || call.functionName === 'sell'
+          ? encodeFunctionData({ abi: AGENT_TOKEN_WRITE_ABI, functionName: call.functionName, args: call.args as never })
+          : encodeFunctionData({ abi: ERC20_WRITE_ABI, functionName: call.functionName, args: call.args as never });
+
+      const res = await cdp.evm.sendUserOperation({
+        smartAccount: smartAccount as never,
+        network: NETWORK,
+        calls: [{ to, data }] as never,
+      });
+      return res.userOpHash;
+    },
+
+    async faucetTo(address, asset) {
+      const res = await cdp.evm.requestFaucet({
+        address: getAddress(address),
+        network: NETWORK,
+        token: asset,
+      });
+      return res.transactionHash;
+    },
+
+    async eoaAccountFor(eoa) {
+      const eoaKey = eoa.toLowerCase();
+      const cached = eoaByAddress.get(eoaKey);
+      if (cached) return cached;
+      // Re-derive by the same deterministic name scheme used in ensureAgent. We only have
+      // the address here; map it back via the agents passed at construction.
+      const cfg = c.agents.find((a) => a.eoa.toLowerCase() === eoaKey);
+      if (!cfg) throw new Error(`no agent config for EOA ${eoa}`);
+      const { eoa: account } = await ensureAgent(cfg);
+      return account;
+    },
+  };
+}

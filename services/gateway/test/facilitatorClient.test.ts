@@ -8,8 +8,8 @@ let server: Server;
 let baseUrl: string;
 let lastBody: any;
 
-const payload = { x402Version: X402_VERSION, scheme: 'exact', network: 'base-sepolia', payload: { signature: '0x', authorization: { from: '0xa', to: '0xb', value: '1', validAfter: '0', validBefore: '9', nonce: '0x1' } } } as PaymentPayload;
-const requirements = { scheme: 'exact', network: 'base-sepolia', maxAmountRequired: '10000', resource: 'r', description: 'd', mimeType: 'application/json', payTo: '0xb', maxTimeoutSeconds: 120, asset: '0xusdc' } as PaymentRequirements;
+const payload = { x402Version: X402_VERSION, scheme: 'exact', network: 'eip155:84532', payload: { signature: '0x', authorization: { from: '0xa', to: '0xb', value: '1', validAfter: '0', validBefore: '9', nonce: '0x1' } } } as PaymentPayload;
+const requirements = { scheme: 'exact', network: 'eip155:84532', maxAmountRequired: '10000', resource: 'r', description: 'd', mimeType: 'application/json', payTo: '0xb', maxTimeoutSeconds: 120, asset: '0xusdc' } as PaymentRequirements;
 
 beforeAll(async () => {
   server = createServer((req, res) => {
