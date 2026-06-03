@@ -8,7 +8,7 @@ import {AgentToken} from "../src/AgentToken.sol";
 contract AgentTokenTest is Test {
     MockUSDC usdc;
     AgentToken token;
-    address alice = address(0xA11CE);
+    address constant alice = address(0xA11CE);
 
     function setUp() public {
         usdc = new MockUSDC();
@@ -76,5 +76,22 @@ contract AgentTokenTest is Test {
         token.buy(30_000_000, 0);
         uint256 m1 = token.marketCap();
         assertGt(m1, m0, "standing grows");
+    }
+
+    function test_sell_respects_min_out() public {
+        vm.startPrank(alice);
+        uint256 out = token.buy(10_000_000, 0);
+        vm.expectRevert(bytes("slippage"));
+        token.sell(out, type(uint256).max);
+        vm.stopPrank();
+    }
+
+    function test_sell_reverts_when_no_real_reserve() public {
+        // alice 拿到代币但未经过 buy，故 usdcReserve 仍为 0
+        vm.prank(address(token));
+        token.transfer(alice, 1000e18);
+        vm.prank(alice);
+        vm.expectRevert(bytes("no real reserve"));
+        token.sell(1000e18, 0);
     }
 }
