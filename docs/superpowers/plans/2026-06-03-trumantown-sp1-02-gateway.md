@@ -77,6 +77,16 @@ resp: { success: boolean, transaction?: string, network?: string, payer?: string
 GET  {FACILITATOR_URL}/supported   → { kinds: [{ x402Version:1, scheme:"exact", network:"base-sepolia" }] }
 ```
 
+> **执行期校正（Task 8 立起真 facilitator 后 LIVE 验证 —— 计划 5 据此对齐）：**
+> 实际 `OviatoHQ/x402-facilitator-hono` 是一个**可挂载 Hono 子应用库**（独立 server 在其
+> `examples/node`），路由挂在 **`/facilitator` 前缀**下（`/facilitator/verify|settle|supported`），
+> env 为 `EVM_PRIVATE_KEY` + `RPC_URL_BASE_SEPOLIA`（无 `SUPPORTED_NETWORK`）。其 `/supported`
+> live 返回 **`x402Version: 2`**、网络 **CAIP-2 `eip155:84532`**（非本计划假定的 v1 / `"base-sepolia"`）。
+> 因此：(1) `FACILITATOR_URL` 须含 `/facilitator` 前缀；(2) 本计划网关按 x402 **v1**/`"base-sepolia"`
+> 实现并以 **mock facilitator** 完成单测/e2e（28/28 全绿、不依赖真链），**网关↔真 facilitator 的
+> 版本/网络对齐留到计划 5**（届时用真 `/verify` 跑通来校验 v2 载荷字段后再改网关常量）。详见
+> `services/facilitator/README.md` 与 `services/gateway/README.md` 的「计划 5 集成待办」。
+
 ### 复用计划 1 的链上事实（勿改）
 
 - USDC（Base Sepolia）= `0x036CbD53842c5426634e7929541eC2318f3dCF7e`（6dec）；本地 anvil 用 `MockUSDC`。
