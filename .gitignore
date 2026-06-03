@@ -49,3 +49,5 @@ contracts/lib/
 services/*/node_modules/
 services/*/dist/
 services/facilitator/
+services/indexer/.ponder/
+services/indexer/generated/
