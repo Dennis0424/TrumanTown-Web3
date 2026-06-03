@@ -1,22 +1,14 @@
 import { ponder } from 'ponder:registry';
 import { agent, tokenIndex, trade } from 'ponder:schema';
-import { getAddress } from 'viem';
 import { AgentRegistryAbi } from '../abis/AgentRegistry';
 import { AgentTokenAbi } from '../abis/AgentToken';
-
-// Registry address resolved once from env (context.contracts.AgentRegistry.address
-// is typed as the configured value, but for factory-registered contracts address is a
-// Factory descriptor, so we use the env var for the registry read below).
-const REGISTRY_ADDRESS = getAddress(
-  process.env.REGISTRY_ADDRESS ?? '0x0000000000000000000000000000000000000000',
-);
 
 /**
  * Reads on-chain life params + latest curve snapshot for an agent.
  * Uses context.client.readContract (Ponder 0.11 ReadonlyClient viem action).
  */
 async function readAgentState(
-  context: { client: { readContract: Function } },
+  context: { client: { readContract: Function }; contracts: { AgentRegistry: { address: `0x${string}` } } },
   agentId: bigint,
   token: `0x${string}`,
   wallet: `0x${string}`,
@@ -24,7 +16,7 @@ async function readAgentState(
   const [a, marketCap, pricePerToken, usdcReserve, tokenBalance] = await Promise.all([
     context.client.readContract({
       abi: AgentRegistryAbi,
-      address: REGISTRY_ADDRESS as `0x${string}`,
+      address: context.contracts.AgentRegistry.address,
       functionName: 'agents',
       args: [agentId],
     }),
@@ -131,6 +123,11 @@ ponder.on('AgentRegistry:AgentRegistered', async ({ event, context }) => {
 // ---------------------------------------------------------------------------
 ponder.on('AgentRegistry:AgentDied', async ({ event, context }) => {
   const id = event.args.agentId.toString();
+  // Intentional partial zero: marketCap collapses to 0 as the economic death
+  // signal (standing = 0 means the agent can no longer pay for inference).
+  // The on-chain curve fields (pricePerToken, usdcReserve, tokenBalance) are
+  // NOT force-zeroed here — AgentRegistry.markDead only flips alive + emits
+  // AgentDied; forced curve-zeroing is deferred to SP5.
   await context.db
     .update(agent, { id })
     .set({
@@ -152,7 +149,7 @@ async function onTrade(
     transaction: { hash: string };
     block: { number: bigint; timestamp: bigint };
   },
-  context: { db: typeof import('ponder:registry') extends never ? never : any; client: { readContract: Function } },
+  context: any,
 ) {
   const token = event.log.address as `0x${string}`;
   const idx = await context.db.find(tokenIndex, { id: token });
