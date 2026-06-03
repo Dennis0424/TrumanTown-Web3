@@ -12,6 +12,10 @@
     "live:verify": "tsx test/live/verify.live.ts"
   },
   "dependencies": {
+    "@coinbase/agentkit": "^0.10.4",
+    "@coinbase/cdp-sdk": "^1.51.0",
+    "@x402/core": "^2.14.0",
+    "@x402/evm": "^2.14.0",
     "express": "^4.19.2",
     "viem": "^2.21.0"
   },
