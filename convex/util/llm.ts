@@ -1,4 +1,7 @@
 // That's right! No imports and no dependencies 🤯
+import { payAwareChatFetch, type EconomyOpts } from '../economy/payment';
+import { createExecutorClient } from '../economy/executorClient';
+import { economyEnabled, executorUrl, defaultAgentId, agentEoa } from '../economy/constants';
 
 const OPENAI_EMBEDDING_DIMENSION = 1536;
 const TOGETHER_EMBEDDING_DIMENSION = 768;
@@ -116,6 +119,12 @@ const AuthHeaders = (): Record<string, string> =>
       }
     : {};
 
+export interface ChatCompletionOpts {
+  agentId?: string;
+  eoaAddress?: string;
+  dead?: boolean;
+}
+
 // Overload for non-streaming
 export async function chatCompletion(
   body: Omit<CreateChatCompletionRequest, 'model'> & {
@@ -123,6 +132,7 @@ export async function chatCompletion(
   } & {
     stream?: false | null | undefined;
   },
+  opts?: ChatCompletionOpts,
 ): Promise<{ content: string; retries: number; ms: number }>;
 // Overload for streaming
 export async function chatCompletion(
@@ -131,11 +141,13 @@ export async function chatCompletion(
   } & {
     stream?: true;
   },
+  opts?: ChatCompletionOpts,
 ): Promise<{ content: ChatCompletionContent; retries: number; ms: number }>;
 export async function chatCompletion(
   body: Omit<CreateChatCompletionRequest, 'model'> & {
     model?: CreateChatCompletionRequest['model'];
   },
+  opts?: ChatCompletionOpts,
 ) {
   const config = getLLMConfig();
   body.model = body.model ?? config.chatModel;
@@ -147,15 +159,24 @@ export async function chatCompletion(
     retries,
     ms,
   } = await retryWithBackoff(async () => {
-    const result = await fetch(config.url + '/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...AuthHeaders(),
-      },
+    const result = economyEnabled()
+      ? await payAwareChatFetch(
+          { gatewayUrl: config.url, executor: createExecutorClient(executorUrl()) },
+          {
+            body: JSON.stringify(body),
+            headers: { ...AuthHeaders() },
+            econ: resolveEconomyOpts(opts),
+          },
+        )
+      : await fetch(config.url + '/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...AuthHeaders(),
+          },
 
-      body: JSON.stringify(body),
-    });
+          body: JSON.stringify(body),
+        });
     if (!result.ok) {
       const error = await result.text();
       console.error({ error });
@@ -184,6 +205,15 @@ export async function chatCompletion(
     content,
     retries,
     ms,
+  };
+}
+
+/** Resolves per-call economy opts, falling back to env (SP1 single agent "0"). */
+function resolveEconomyOpts(opts?: ChatCompletionOpts): EconomyOpts {
+  return {
+    agentId: opts?.agentId ?? defaultAgentId(),
+    eoaAddress: opts?.eoaAddress ?? agentEoa(),
+    dead: opts?.dead ?? false,
   };
 }
 
