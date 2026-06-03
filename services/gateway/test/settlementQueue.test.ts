@@ -47,4 +47,19 @@ describe('SettlementQueue', () => {
     await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
     expect(q.size).toBe(0);
   });
+
+  it('does not crash the flush when onError itself throws', async () => {
+    const settle = vi.fn().mockRejectedValue(new Error('chain down'));
+    const onError = vi.fn(() => {
+      throw new Error('logger exploded');
+    });
+    const facilitator = { settle, verify: vi.fn() } as unknown as Facilitator;
+    // maxBatch: 5 — enqueue only arms a timer, so the item is still in the queue.
+    // The explicit await q.flush() below is the one that exercises settle + throwing onError.
+    const q = new SettlementQueue(facilitator, { maxBatch: 5, maxWaitMs: 60000, onError });
+    q.enqueue(item(1));
+    // flush must resolve cleanly despite onError throwing
+    await expect(q.flush()).resolves.toBeUndefined();
+    expect(q.size).toBe(0);
+  });
 });

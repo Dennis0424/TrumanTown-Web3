@@ -54,7 +54,12 @@ export class SettlementQueue {
         try {
           await this.facilitator.settle(it.payload, it.requirements);
         } catch (err) {
-          this.opts.onError?.(err, it);
+          // A misbehaving onError must never crash the flush (and thus the gateway).
+          try {
+            this.opts.onError?.(err, it);
+          } catch {
+            // swallow — settlement errors are best-effort to report
+          }
         }
       }),
     );
