@@ -45,3 +45,7 @@ convex_local*
 
 # Foundry deps (managed by forge install)
 contracts/lib/
+
+services/*/node_modules/
+services/*/dist/
+services/facilitator/
