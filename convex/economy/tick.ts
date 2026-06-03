@@ -6,9 +6,10 @@ import {
   COST_PER_THINK,
   STANDING_FLOOR,
   RECOVERY_WINDOW,
-  DEFAULT_ECON_AGENT_ID,
   economyEnabled,
   executorUrl,
+  defaultAgentId,
+  agentEoa,
 } from './constants';
 
 /**
@@ -26,24 +27,26 @@ export const runEconomicTick = internalAction({
     const wa = await ctx.runQuery(internal.economy.perception.getDefaultWorldAgent, {});
     if (!wa) return;
 
-    const econAgentId = process.env.DEFAULT_AGENT_ID ?? DEFAULT_ECON_AGENT_ID;
-    const eoa = process.env.AGENT_0_EOA ?? '';
+    const econAgentId = defaultAgentId();
+    const eoa = agentEoa() ?? '';
     const executor = createExecutorClient(executorUrl());
-
-    let balances;
-    try {
-      balances = await executor.balances(econAgentId);
-    } catch (e) {
-      console.error('[economy] balances unavailable, skipping tick', e);
-      return;
-    }
-
-    const costPerThink = BigInt(process.env.COST_PER_THINK ?? COST_PER_THINK);
-    const floor = BigInt(process.env.STANDING_FLOOR ?? STANDING_FLOOR);
     const recoveryWindow = Number(process.env.RECOVERY_WINDOW ?? RECOVERY_WINDOW);
 
-    const energy = computeEnergy(BigInt(balances.eoaUsdc), costPerThink);
-    const dying = isDying(energy, BigInt(balances.marketCap), floor);
+    // Perceive + parse atomic-string amounts together: a malformed/empty balance
+    // (a bad BigInt) must skip the tick fail-safe, not crash the action.
+    let balances;
+    let energy: number;
+    let dying: boolean;
+    try {
+      balances = await executor.balances(econAgentId);
+      const costPerThink = BigInt(process.env.COST_PER_THINK ?? COST_PER_THINK);
+      const floor = BigInt(process.env.STANDING_FLOOR ?? STANDING_FLOOR);
+      energy = computeEnergy(BigInt(balances.eoaUsdc), costPerThink);
+      dying = isDying(energy, BigInt(balances.marketCap), floor);
+    } catch (e) {
+      console.error('[economy] balances unavailable or malformed, skipping tick', e);
+      return;
+    }
 
     const prevRow = await ctx.runQuery(internal.economy.perception.getAgentEconomy, {
       worldId: wa.worldId,
