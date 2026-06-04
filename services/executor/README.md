@@ -12,15 +12,27 @@ Server Account（持 USDC、x402 付款方）。对外是计划2 冻结的接口
 - **EOA**：每次思考用它签 EIP-3009 付 x402。Energy = EOA USDC / costPerThink（瞬时预算）。
 - **饥饿/死亡由计划4 判定**（执行器只报事实）：EOA 付不起且 smart USDC≈0 且 token 卖不出钱 → 抢救窗口。
 
-## WSL 运行（Node 18）
+## WSL 运行（执行器需 Node ≥ 19）
+
+> ⚠ **本服务必须用 Node ≥ 19**（`@coinbase/cdp-sdk` 在 Node 18 的 `CdpClient` 构造处直接抛
+> `Node.js version 18.x is not supported`）。这是执行器**独有**的例外——仓库其余工具链（Convex
+> 等）仍是 Node 18。实测用 `nvm use 20`。
 
 ```bash
 cd services/executor
-nvm use 18
+nvm use 20
 npm install
-cp .env.example .env   # 填 CDP 密钥 / AGENT_0_* / USDC / RPC
+cp .env.example .env   # 填 CDP 三件套 / USDC / RPC（AGENT_0_* 可先留 0x... 占位）
+npm run accounts       # 取/建居民 0 的 CDP EOA + 智能账户，打印两个地址 → 粘回 .env 的 AGENT_0_*
 npm run start          # :8404
 ```
+
+> **`.env` 加载与代理**：三个入口（`index.ts` / `bootstrapAccounts.ts` / `live:verify`）首行
+> `import './loadEnv.js'`，它 (1) 用 dotenv 加载本目录 `.env`（Node 18 无 `--env-file`，本版 tsx
+> 会把该 flag 透传给 node 而报 `bad option`，故用 dotenv）；(2) 若设了 `HTTP(S)_PROXY`，用
+> **global-agent** 把 http/https 走代理（CDP SDK 用 axios，axios 自带的 env 代理无法对 HTTPS 做
+> CONNECT 隧道，会报 `plain HTTP request was sent to HTTPS port`；global-agent 修正之）。
+> `127.0.0.1`/`localhost`（facilitator 等本地服务）默认不走代理。
 
 依赖：facilitator 在 :8403（计划2）、（LIVE 冒烟时）真 CDP 密钥。
 

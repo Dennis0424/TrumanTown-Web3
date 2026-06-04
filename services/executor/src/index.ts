@@ -1,3 +1,4 @@
+import './loadEnv.js'; // load .env + route fetch through proxy (must be first)
 import { createExecutor } from './executor.js';
 import { staticAgentResolver, type AgentConfig } from './config.js';
 import { createCdpWalletProvider } from './cdpWalletProvider.js';

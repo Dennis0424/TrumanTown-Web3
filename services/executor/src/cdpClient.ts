@@ -13,6 +13,12 @@ const AGENT_TOKEN_WRITE_ABI = [
 
 const NETWORK = 'base-sepolia' as const; // CDP faucet/user-op network name for Base Sepolia (eip155:84532)
 
+// Deterministic CDP account names per agent. Single-sourced here so `ensureAgent` (runtime)
+// and the `bootstrapAccounts` script (address discovery) cannot drift apart — the smart
+// account's owner must be the SAME named EOA the x402 signer signs with.
+export const agentEoaName = (agentId: string) => `trumantown-agent-${agentId}-eoa`;
+export const agentSmartName = (agentId: string) => `trumantown-agent-${agentId}-smart`;
+
 export interface CdpHooksConfig {
   apiKeyId: string;
   apiKeySecret: string;
@@ -70,9 +76,9 @@ export async function buildCdpHooks(c: CdpHooksConfig): Promise<CdpHooks> {
     let smartAccount = smartByEoa.get(eoaKey);
     if (eoa && smartAccount) return { eoa, smartAccount };
 
-    eoa = await cdp.evm.getOrCreateAccount({ name: `trumantown-agent-${cfg.agentId}-eoa` });
+    eoa = await cdp.evm.getOrCreateAccount({ name: agentEoaName(cfg.agentId) });
     smartAccount = await cdp.evm.getOrCreateSmartAccount({
-      name: `trumantown-agent-${cfg.agentId}-smart`,
+      name: agentSmartName(cfg.agentId),
       owner: eoa as never,
     });
     eoaByAddress.set(eoaKey, eoa);

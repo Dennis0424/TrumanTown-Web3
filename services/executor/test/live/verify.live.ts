@@ -4,6 +4,7 @@
  * X-PAYMENT the REAL self-hosted facilitator's /verify accepts on eip155:84532.
  * Skips cleanly if CDP creds are not set.
  */
+import '../../src/loadEnv.js'; // load .env + route fetch through proxy (must be first)
 import { buildCdpHooks } from '../../src/cdpClient.js';
 import { createX402Signer } from '../../src/x402Signer.js';
 import { decodeXPayment, type PaymentRequirements } from '../../src/x402.js';
