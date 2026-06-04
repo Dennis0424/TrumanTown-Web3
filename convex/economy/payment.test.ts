@@ -35,6 +35,7 @@ function fakeExecutor(over: Partial<ExecutorClient> = {}): { ex: ExecutorClient;
     async buy() { return '0xbuy'; },
     async transfer(_id, s, to, amt) { rec.transfer.push({ s, to, amt }); return '0xxfer'; },
     async fund() { return '0xfund'; },
+    async markDead() { return '0xdead'; },
     ...over,
   };
   return { ex, rec };

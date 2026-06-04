@@ -7,6 +7,7 @@ export interface ExecutorClient {
   buy(agentId: string, usdcIn: string, minTokensOut?: string, token?: string): Promise<string>;
   transfer(agentId: string, source: 'smart' | 'eoa', to: string, amount: string): Promise<string>;
   fund(agentId: string, target: 'eoa' | 'smart', asset: 'usdc' | 'eth'): Promise<string>;
+  markDead(agentId: string): Promise<string>;
 }
 
 /**
@@ -58,6 +59,9 @@ export function createExecutorClient(baseUrl: string, fetchImpl: typeof fetch = 
     },
     fund(agentId, target, asset) {
       return action('/actions/fund', { agentId, target, asset });
+    },
+    markDead(agentId) {
+      return action('/actions/mark-dead', { agentId });
     },
   };
 }
