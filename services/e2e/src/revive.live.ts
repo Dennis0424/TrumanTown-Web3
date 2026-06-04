@@ -51,6 +51,9 @@ async function main() {
     minUsdcOut: '0',
   });
   console.log('[revive] sell ->', sell.status, (sell.json as { txHash?: string })?.txHash);
+  if (sell.status < 200 || sell.status >= 300) {
+    throw new Error(`[revive] sell failed: status ${sell.status} — ${JSON.stringify(sell.json)}`);
+  }
   const afterSell = await getBalances(EXECUTOR, AGENT_ID);
   const xfer = await executorAction(EXECUTOR, '/actions/transfer', {
     agentId: AGENT_ID,
@@ -59,6 +62,9 @@ async function main() {
     amount: afterSell.smartUsdc,
   });
   console.log('[revive] transfer smart->eoa ->', xfer.status, (xfer.json as { txHash?: string })?.txHash);
+  if (xfer.status < 200 || xfer.status >= 300) {
+    throw new Error(`[revive] transfer smart->eoa failed: status ${xfer.status} — ${JSON.stringify(xfer.json)}`);
+  }
 
   const sign2 = await executorAction(EXECUTOR, '/sign-payment', {
     agentId: AGENT_ID,
