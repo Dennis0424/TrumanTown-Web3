@@ -33,15 +33,22 @@ export function createRegistryResolver(
   const cache = new Map<string, AgentPrice>();
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  let refreshing = false;
   async function refresh(): Promise<void> {
-    for (const id of agentIds) {
-      try {
-        const a = await reader.readAgent(id);
-        if (a && a.alive) cache.set(id, { costPerThink: a.costPerThink.toString(), ...base });
-        else cache.delete(id);
-      } catch {
-        // keep last-good cache entry on transient RPC failure
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      for (const id of agentIds) {
+        try {
+          const a = await reader.readAgent(id);
+          if (a && a.alive) cache.set(id, { costPerThink: a.costPerThink.toString(), ...base });
+          else cache.delete(id);
+        } catch {
+          // keep last-good cache entry on transient RPC failure
+        }
       }
+    } finally {
+      refreshing = false;
     }
   }
 

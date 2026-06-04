@@ -31,8 +31,8 @@ async function main() {
   if (process.env.GATEWAY_USE_REGISTRY === '1') {
     const reg = createRegistryResolver(
       viemRegistryReader(
-        process.env.RPC_URL_BASE_SEPOLIA ?? 'https://sepolia.base.org',
-        process.env.REGISTRY_ADDRESS ?? '0x',
+        env('RPC_URL_BASE_SEPOLIA', 'https://sepolia.base.org'),
+        env('REGISTRY_ADDRESS'),
       ),
       { payTo: price.payTo, asset: price.asset, network: price.network },
       (process.env.AGENT_IDS ?? '0').split(',').map((s) => s.trim()).filter(Boolean),
@@ -54,4 +54,4 @@ async function main() {
   app.listen(port, () => console.log(`[gateway] x402 metered inference on :${port}`));
 }
 
-main();
+main().catch((err) => { console.error('[gateway] fatal:', err); process.exit(1); });
