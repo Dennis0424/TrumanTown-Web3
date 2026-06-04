@@ -34,6 +34,7 @@ async function main() {
     usdcAddress,
     sendSmartAccountCall: cdp.sendSmartAccountCall,
     faucetTo: cdp.faucetTo,
+    sendEoaTransfer: cdp.sendEoaTransfer,
   });
 
   const signer = createX402Signer({ accountFor: cdp.eoaAccountFor });

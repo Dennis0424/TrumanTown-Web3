@@ -19,6 +19,8 @@ export interface CdpWalletConfig {
     call: { to: string; functionName: 'buy' | 'sell' | 'approve' | 'transfer'; args: unknown[] },
   ) => Promise<string>;
   faucetTo: (address: string, asset: 'usdc' | 'eth') => Promise<string>;
+  /** Sends USDC from the agent's EOA (x402 payer). From cdpClient.ts. */
+  sendEoaTransfer: (cfg: AgentConfig, to: string, amount: bigint) => Promise<string>;
 }
 
 export function createCdpWalletProvider(c: CdpWalletConfig): WalletProvider {
@@ -42,13 +44,11 @@ export function createCdpWalletProvider(c: CdpWalletConfig): WalletProvider {
       return c.sendSmartAccountCall(cfg, { to: token, functionName: 'sell', args: [tokensIn, minUsdcOut] });
     },
     async transferUsdc(cfg, source, to, amount) {
-      // SP1 only ever sweeps smart->eoa, so only the smart-account source is wired here
-      // (gasless via paymaster). An 'eoa'-sourced transfer needs a CDP EOA send, added in
-      // Plan 5 — reject it explicitly rather than silently routing from the smart account
-      // and misrouting funds.
       if (source === 'eoa') {
-        throw new Error("transferUsdc(source:'eoa') not implemented in SP1 — wire CDP EOA send in Plan 5");
+        // EOA-sourced send (e.g. refunds / future flows). The EOA is the x402 payer.
+        return c.sendEoaTransfer(cfg, to, amount);
       }
+      // smart-account-sourced sweep (gasless via paymaster) — the SP1 revive path.
       return c.sendSmartAccountCall(cfg, { to: c.usdcAddress, functionName: 'transfer', args: [getAddress(to), amount] });
     },
     async fund(cfg, target, asset) {
