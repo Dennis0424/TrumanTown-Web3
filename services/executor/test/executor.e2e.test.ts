@@ -30,6 +30,7 @@ function makeApp() {
     signer: s.signer,
     guardrails,
     usdcAddress: '0xUSDC',
+    markDead: async (id) => `0xdead-${id}`,
   });
   return { app, w, s };
 }
@@ -129,5 +130,29 @@ describe('executor end-to-end', () => {
     });
     const res = await request(app).get('/balances/99');
     expect(res.status).toBe(404);
+  });
+
+  it('POST /actions/mark-dead returns txHash for known agent', async () => {
+    const { app } = makeApp();
+    const res = await request(app).post('/actions/mark-dead').send({ agentId: '0' });
+    expect(res.status).toBe(200);
+    expect(res.body.txHash).toBe('0xdead-0');
+  });
+
+  it('POST /actions/mark-dead 400 when agentId missing', async () => {
+    const { app } = makeApp();
+    const res = await request(app).post('/actions/mark-dead').send({});
+    expect(res.status).toBe(400);
+  });
+
+  it('POST /actions/mark-dead 501 when keeper not configured', async () => {
+    const w = fakeWallet();
+    const s = fakeSigner();
+    const app = createExecutor({
+      resolve: staticAgentResolver({ '0': agent0 }, agent0),
+      wallet: w.provider, signer: s.signer, guardrails, usdcAddress: '0xUSDC',
+    });
+    const res = await request(app).post('/actions/mark-dead').send({ agentId: '0' });
+    expect(res.status).toBe(501);
   });
 });

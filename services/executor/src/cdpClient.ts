@@ -28,6 +28,8 @@ export interface CdpHooks {
     call: { to: string; functionName: 'buy' | 'sell' | 'approve' | 'transfer'; args: unknown[] },
   ): Promise<string>;
   faucetTo(address: string, asset: 'usdc' | 'eth'): Promise<string>;
+  /** Sends USDC from an agent's EOA server account. */
+  sendEoaTransfer(cfg: AgentConfig, to: string, amount: bigint): Promise<string>;
   eoaAccountFor(eoa: string): Promise<unknown>;
 }
 
@@ -100,6 +102,20 @@ export async function buildCdpHooks(c: CdpHooksConfig): Promise<CdpHooks> {
         address: getAddress(address),
         network: NETWORK,
         token: asset,
+      });
+      return res.transactionHash;
+    },
+
+    async sendEoaTransfer(cfg, to, amount) {
+      await ensureAgent(cfg); // idempotent: ensures the EOA server account is loaded before sending
+      // CDP EvmServerAccount USDC transfer (ERC20).
+      // cdp.evm.sendTransaction accepts address + TransactionRequestEIP1559 object + network.
+      // Returns { transactionHash: Hex }.
+      const data = encodeFunctionData({ abi: ERC20_WRITE_ABI, functionName: 'transfer', args: [getAddress(to), amount] });
+      const res = await cdp.evm.sendTransaction({
+        address: getAddress(cfg.eoa),
+        network: NETWORK,
+        transaction: { to: usdc, data },
       });
       return res.transactionHash;
     },

@@ -1,0 +1,22 @@
+{
+  "name": "trumantown-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "e2e:revive": "tsx --env-file=.env src/revive.live.ts",
+    "e2e:death": "tsx --env-file=.env src/death.live.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "convex": "^1.16.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

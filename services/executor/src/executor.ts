@@ -6,6 +6,7 @@ import { GuardrailError, type GuardrailConfig } from './guardrails.js';
 import { signPaymentForAgent } from './signPayment.js';
 import { buyAction, sellAction, transferAction, type ActionsDeps } from './actions.js';
 import { readBalances } from './balances.js';
+import { markDeadForAgent } from './keeper.js';
 
 export interface ExecutorDeps {
   resolve: AgentResolver;
@@ -13,6 +14,7 @@ export interface ExecutorDeps {
   signer: PaymentSigner;
   guardrails: GuardrailConfig;
   usdcAddress: string;
+  markDead?: (agentId: string) => Promise<string>;
 }
 
 class HttpError extends Error {
@@ -135,6 +137,21 @@ export function createExecutor(deps: ExecutorDeps): express.Express {
       if (asset !== 'usdc' && asset !== 'eth') throw new HttpError(400, 'asset must be "usdc" or "eth"');
       const txHash = await deps.wallet.fund(cfg, target, asset);
       res.json({ txHash });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
+  app.post('/actions/mark-dead', async (req: Request, res: Response) => {
+    try {
+      const { agentId } = req.body ?? {};
+      if (typeof agentId !== 'string' || agentId.length === 0) {
+        res.status(400).json({ error: 'agentId required' });
+        return;
+      }
+      const result = await markDeadForAgent({ resolve: deps.resolve, markDead: deps.markDead }, agentId);
+      if (result.ok) { res.status(200).json({ txHash: result.txHash }); return; }
+      res.status(result.status).json({ error: result.error });
     } catch (e) {
       fail(res, e);
     }

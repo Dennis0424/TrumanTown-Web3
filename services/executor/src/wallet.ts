@@ -9,6 +9,7 @@ import type { AgentConfig } from './config.js';
  * - on-chain actions (buy/sell/transferUsdc/fund) run on the agent's SMART account
  *   (gasless via paymaster) and return a tx hash string. transferUsdc(source) lets
  *   the brain move USDC between the agent's own smart account and EOA.
+ *   Exception: transferUsdc with source:'eoa' runs on the EOA via a normal ERC20 tx (no paymaster).
  */
 export interface WalletProvider {
   getUsdcBalance(address: string): Promise<bigint>;

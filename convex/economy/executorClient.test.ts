@@ -100,4 +100,18 @@ describe('createExecutorClient', () => {
     const ex = createExecutorClient(baseUrl);
     await expect(ex.sell('0', '9', '0')).rejects.toThrow(/403/);
   });
+
+  test('markDead posts agentId and returns txHash', async () => {
+    routes['POST /actions/mark-dead'] = { status: 200, body: { txHash: '0xdead' } };
+    const ex = createExecutorClient(baseUrl);
+    const tx = await ex.markDead('0');
+    expect(tx).toBe('0xdead');
+    expect(last!.body).toEqual({ agentId: '0' });
+  });
+
+  test('markDead throws with status on non-2xx', async () => {
+    routes['POST /actions/mark-dead'] = { status: 501, body: { error: 'keeper not configured' } };
+    const ex = createExecutorClient(baseUrl);
+    await expect(ex.markDead('0')).rejects.toThrow(/501/);
+  });
 });

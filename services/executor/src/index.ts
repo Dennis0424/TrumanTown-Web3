@@ -3,6 +3,8 @@ import { staticAgentResolver, type AgentConfig } from './config.js';
 import { createCdpWalletProvider } from './cdpWalletProvider.js';
 import { createX402Signer } from './x402Signer.js';
 import { buildCdpHooks } from './cdpClient.js';
+import { createRegistryAgentResolver, viemRegistryAgentReader } from './registryAgentResolver.js';
+import { createKeeperMarkDead } from './keeperSigner.js';
 
 function env(name: string, fallback?: string): string {
   const v = process.env[name] ?? fallback;
@@ -33,6 +35,7 @@ async function main() {
     usdcAddress,
     sendSmartAccountCall: cdp.sendSmartAccountCall,
     faucetTo: cdp.faucetTo,
+    sendEoaTransfer: cdp.sendEoaTransfer,
   });
 
   const signer = createX402Signer({ accountFor: cdp.eoaAccountFor });
@@ -42,12 +45,34 @@ async function main() {
     allowedContracts: [agent0.token, usdcAddress],
   };
 
+  let resolve = staticAgentResolver({ '0': agent0 }, agent0);
+  if (process.env.EXECUTOR_USE_REGISTRY === '1') {
+    const reg = createRegistryAgentResolver(
+      viemRegistryAgentReader(
+        env('RPC_URL_BASE_SEPOLIA', 'https://sepolia.base.org'),
+        env('REGISTRY_ADDRESS'),
+      ),
+      (id) => (id === agent0.agentId ? agent0.eoa : `0x`),
+      (process.env.AGENT_IDS ?? '0').split(',').map((s) => s.trim()).filter(Boolean),
+    );
+    await reg.refresh();
+    reg.start(Number(process.env.REGISTRY_REFRESH_MS ?? '30000'));
+    resolve = reg.resolve;
+  }
+
+  const markDead = createKeeperMarkDead({
+    privateKey: process.env.KEEPER_PRIVATE_KEY,
+    rpcUrl: env('RPC_URL_BASE_SEPOLIA', 'https://sepolia.base.org'),
+    registry: process.env.REGISTRY_ADDRESS,
+  });
+
   const app = createExecutor({
-    resolve: staticAgentResolver({ '0': agent0 }, agent0),
+    resolve,
     wallet,
     signer,
     guardrails,
     usdcAddress,
+    markDead,
   });
 
   const port = Number(env('PORT', '8404'));
