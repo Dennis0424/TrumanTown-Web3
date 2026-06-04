@@ -46,9 +46,10 @@ npm run live:verify    # 可选 LIVE 冒烟：真 CDP 签名 → 真 facilitator
   故 Task 9 的实现用 `@x402/core`+`@x402/evm`（**非**下方参考代码里的裸 `x402`），其余结构不变；真链验证仍由
   LIVE 冒烟在计划5 完成。
 
-## ⚠ 计划 5 集成待办
+## ✅ 计划 5（已完成）
 
-- static agent resolver → 从 `AgentRegistry.agents(id)` / Ponder 读 `wallet`+`token` 的解析器（不改 resolver 接口）。
-- 注入真 CDP 密钥；用 LIVE 冒烟核过的 x402 v2 绑定跑真链 buy/sell/transfer。
-- 与网关 + facilitator 端到端：402 → `/sign-payment` → 重试 → 真 `/verify` → 批量 `/settle` 上链。
-- LIVE 冒烟 (`npm run live:verify`) 是「@x402 v2 签名被真 facilitator /verify 接受」的真相检验——计划5 备齐 CDP 密钥 + 运行中的 facilitator 后跑通。
+- `EXECUTOR_USE_REGISTRY=1`：以链上 `AgentRegistry.agents(id)` 解析 token/wallet + CDP 派生 EOA（registry-cache resolver，反伪造、无宽容 fallback；未注册/dead → 404）。
+- `transferUsdc(source:"eoa")` 接通 CDP EOA send（`cdp.evm.sendTransaction`）。
+- keeper：新增 `POST /actions/mark-dead {agentId}`（keeper-only，`KEEPER_PRIVATE_KEY` viem 直发 `AgentRegistry.markDead`，需 Base Sepolia ETH 付 gas）。
+- 两条端到端验收脚本见 `services/e2e/`（① 复活 ② 死亡）。
+- LIVE 冒烟 (`npm run live:verify`) 仍是「@x402 v2 签名被真 facilitator /verify 接受」的真相检验。

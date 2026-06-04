@@ -49,9 +49,9 @@ npm run dev          # convex dev + vite
 #       EOA 耗尽时日志出现卖币→扫款；持续 T=10 周期无救 → agentEconomy.status='dead'，居民停说话。
 ```
 
-## ⚠ 计划 5 集成待办
+## ✅ 计划 5（已完成）
 
-- `getDefaultWorldAgent` / 常量镜像 → 改读 `AgentRegistry.agents(id)`（wallet/token/costPerThink/floor/recoveryWindow）+ Ponder 价表。
-- `agentEconomy.status==='dead'` → keeper 调 `AgentRegistry.markDead(id)` 上链 → `AgentDied` 事件（币价归零）。
-- 感知数据源 SP1 = 执行器 `/balances`；计划 5 改读 Ponder（同字段语义）。
-- 跑通两条剧本：① 饥饿→卖币→扫款→复活；② 饥饿→无人施救→死亡（markDead + AgentDied）。
+- **混合数据源**：Standing + 生命参数（marketCap/tokenBalance/costPerThink/floor/recoveryWindow/alive）从 **Ponder** 读（`ponderClient` + `resolveEconomyParams`，env/常量兜底）；**USDC 余额（eoaUsdc/smartUsdc = energy 源）仍走链读** `/balances`——pay-to-think 闸门保持链上真值、零索引器滞后。
+- **死亡上链**：`status` 翻 `dead`（本周期首次）时，若 `TRUMANTOWN_KEEPER=1`，经济 tick 调执行器 `/actions/mark-dead` → 链上 `AgentRegistry.markDead(id)` → `AgentDied`。
+- **gated 验收接口** `economy/e2e.ts`（`TRUMANTOWN_E2E=1` 才生效）：公开 action `tickOnce`（驱动单次 tick）/ `getStatus`（读 agentEconomy 行），供 `services/e2e/` 两条剧本确定性驱动。
+- 新增模块：`ponderClient.ts`、`registry.ts`、`e2e.ts`；新增 env：`PONDER_URL`、`TRUMANTOWN_KEEPER`、`TRUMANTOWN_E2E`。
