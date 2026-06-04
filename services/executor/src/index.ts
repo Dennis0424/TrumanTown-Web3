@@ -4,6 +4,7 @@ import { createCdpWalletProvider } from './cdpWalletProvider.js';
 import { createX402Signer } from './x402Signer.js';
 import { buildCdpHooks } from './cdpClient.js';
 import { createRegistryAgentResolver, viemRegistryAgentReader } from './registryAgentResolver.js';
+import { createKeeperMarkDead } from './keeperSigner.js';
 
 function env(name: string, fallback?: string): string {
   const v = process.env[name] ?? fallback;
@@ -59,12 +60,19 @@ async function main() {
     resolve = reg.resolve;
   }
 
+  const markDead = createKeeperMarkDead({
+    privateKey: process.env.KEEPER_PRIVATE_KEY,
+    rpcUrl: env('RPC_URL_BASE_SEPOLIA', 'https://sepolia.base.org'),
+    registry: process.env.REGISTRY_ADDRESS,
+  });
+
   const app = createExecutor({
     resolve,
     wallet,
     signer,
     guardrails,
     usdcAddress,
+    markDead,
   });
 
   const port = Number(env('PORT', '8404'));
