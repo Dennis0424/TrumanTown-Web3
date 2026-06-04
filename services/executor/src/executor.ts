@@ -143,14 +143,18 @@ export function createExecutor(deps: ExecutorDeps): express.Express {
   });
 
   app.post('/actions/mark-dead', async (req: Request, res: Response) => {
-    const { agentId } = req.body ?? {};
-    if (typeof agentId !== 'string' || agentId.length === 0) {
-      res.status(400).json({ error: 'agentId required' });
-      return;
+    try {
+      const { agentId } = req.body ?? {};
+      if (typeof agentId !== 'string' || agentId.length === 0) {
+        res.status(400).json({ error: 'agentId required' });
+        return;
+      }
+      const result = await markDeadForAgent({ resolve: deps.resolve, markDead: deps.markDead }, agentId);
+      if (result.ok) { res.status(200).json({ txHash: result.txHash }); return; }
+      res.status(result.status).json({ error: result.error });
+    } catch (e) {
+      fail(res, e);
     }
-    const result = await markDeadForAgent({ resolve: deps.resolve, markDead: deps.markDead }, agentId);
-    if (result.ok) { res.status(200).json({ txHash: result.txHash }); return; }
-    res.status(result.status).json({ error: result.error });
   });
 
   app.get('/balances/:agentId', async (req: Request, res: Response) => {
