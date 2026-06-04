@@ -24,3 +24,9 @@ export function defaultAgentId(): string {
 export function agentEoa(): string | undefined {
   return process.env.AGENT_0_EOA;
 }
+export function ponderUrl(): string | undefined {
+  return process.env.PONDER_URL; // e.g. http://127.0.0.1:42069 ; undefined => fall back to executor /balances Standing
+}
+export function keeperEnabled(): boolean {
+  return process.env.TRUMANTOWN_KEEPER === '1';
+}
