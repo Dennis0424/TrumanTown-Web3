@@ -107,9 +107,7 @@ export async function buildCdpHooks(c: CdpHooksConfig): Promise<CdpHooks> {
     },
 
     async sendEoaTransfer(cfg, to, amount) {
-      const eoaKey = cfg.eoa.toLowerCase();
-      const eoa = eoaByAddress.get(eoaKey);
-      if (!eoa) throw new Error(`no EOA loaded for ${cfg.eoa}`);
+      await ensureAgent(cfg); // idempotent: ensures the EOA server account is loaded before sending
       // CDP EvmServerAccount USDC transfer (ERC20).
       // cdp.evm.sendTransaction accepts address + TransactionRequestEIP1559 object + network.
       // Returns { transactionHash: Hex }.
