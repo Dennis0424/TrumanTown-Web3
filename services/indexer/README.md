@@ -11,10 +11,10 @@
 ## 混合数据源（重要）
 `agent` 行只存 **Standing 侧**（曲线派生 + 注册表镜像）。**USDC 钱包余额（eoaUsdc/smartUsdc = energy 源）不进 Ponder**——由 Convex 经济 tick 直接链读（pay-to-think 闸门保持链上真值、零索引器滞后）。
 
-## WSL 运行（Node 18）
+## WSL 运行（Node 24）
 ```bash
 cd services/indexer
-nvm use 18
+nvm use 24
 npm install
 cp .env.example .env   # 填 FACTORY_ADDRESS / REGISTRY_ADDRESS / USDC_ADDRESS / START_BLOCK / RPC（计划1 Deploy 输出）
 npm run dev            # ponder dev，读 API 在 :42069（PONDER_PORT 可覆盖）；自带 /graphql

@@ -399,8 +399,8 @@ Steps:
    export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
    source ~/.bashrc
-   nvm install 18
-   nvm use 18
+   nvm install 24
+   nvm use 24
    ```
 
 4. Install Python and Pip
@@ -531,9 +531,10 @@ npx convex run init
 ### Incompatible Node.js versions
 
 If you encounter a node version error on the convex server upon application startup, please use node
-version 18, which is the most stable. One way to do this is by
-[installing nvm](https://nodejs.org/en/download/package-manager) and running `nvm install 18` and
-`nvm use 18`.
+version 24 (this fork is verified end-to-end on Node 24; `@coinbase/cdp-sdk` requires Node ≥ 19).
+One way to do this is by
+[installing nvm](https://nodejs.org/en/download/package-manager) and running `nvm install 24` and
+`nvm use 24`.
 
 ### Reaching Ollama
 

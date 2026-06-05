@@ -4,11 +4,11 @@
 首次 `402 + 付款要求`；带 `X-PAYMENT` 重试 → facilitator 即时验款 → 反向代理转发
 Ollama → 返回；已验款项入内存队列，每 N=10 笔或 60s 批量 settle 上链。
 
-## WSL 运行（Node 18）
+## WSL 运行（Node 24）
 
 ```bash
 cd services/gateway
-nvm use 18
+nvm use 24
 npm install
 cp .env.example .env   # 填 GATEWAY_TREASURY_ADDRESS 等
 npm run start          # :8402

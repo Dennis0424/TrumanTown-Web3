@@ -12,15 +12,14 @@ Server Account（持 USDC、x402 付款方）。对外是计划2 冻结的接口
 - **EOA**：每次思考用它签 EIP-3009 付 x402。Energy = EOA USDC / costPerThink（瞬时预算）。
 - **饥饿/死亡由计划4 判定**（执行器只报事实）：EOA 付不起且 smart USDC≈0 且 token 卖不出钱 → 抢救窗口。
 
-## WSL 运行（执行器需 Node ≥ 19）
+## WSL 运行（Node 24）
 
-> ⚠ **本服务必须用 Node ≥ 19**（`@coinbase/cdp-sdk` 在 Node 18 的 `CdpClient` 构造处直接抛
-> `Node.js version 18.x is not supported`）。这是执行器**独有**的例外——仓库其余工具链（Convex
-> 等）仍是 Node 18。实测用 `nvm use 20`。
+> 整个仓库已统一 **Node 24**（`nvm use 24`，已设 nvm 默认）。注意 `@coinbase/cdp-sdk` 自身要求
+> Node ≥ 19（Node 18 下会在 `CdpClient` 构造处抛 `not supported`），Node 24 满足。
 
 ```bash
 cd services/executor
-nvm use 20
+nvm use 24
 npm install
 cp .env.example .env   # 填 CDP 三件套 / USDC / RPC（AGENT_0_* 可先留 0x... 占位）
 npm run accounts       # 取/建居民 0 的 CDP EOA + 智能账户，打印两个地址 → 粘回 .env 的 AGENT_0_*
