@@ -61,9 +61,14 @@ export function createX402Signer(cfg: X402SignerConfig): PaymentSigner {
       const payload = await http.createPaymentPayload(paymentRequired);
       const headers = http.encodePaymentSignatureHeader(payload);
 
-      // Extract the X-PAYMENT header value (case-insensitive).
-      const key = Object.keys(headers).find((k) => k.toLowerCase() === 'x-payment');
-      if (!key) throw new Error('x402 client did not produce an X-PAYMENT header');
+      // @x402 v2 returns the encoded payload under "PAYMENT-SIGNATURE" (v1 used "X-PAYMENT").
+      // We only need the encoded VALUE — TrumanTown carries it under X-PAYMENT on the wire
+      // (the gateway reads `x-payment`), so accept either key.
+      const key = Object.keys(headers).find((k) => {
+        const lk = k.toLowerCase();
+        return lk === 'payment-signature' || lk === 'x-payment';
+      });
+      if (!key) throw new Error(`x402 client produced no payment header; got: ${Object.keys(headers).join(',') || '(none)'}`);
       return headers[key];
     },
   };

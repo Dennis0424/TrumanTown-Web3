@@ -9,9 +9,9 @@ import {
 
 const sample: PaymentPayload = {
   x402Version: X402_VERSION,
-  scheme: 'exact',
-  network: DEFAULT_NETWORK,
   payload: { signature: '0xdeadbeef', authorization: { from: '0xa', to: '0xb', value: '10000' } },
+  // @x402 v2: scheme/network live under `accepted`, not at top level.
+  accepted: { scheme: 'exact', network: DEFAULT_NETWORK },
 };
 
 describe('x402 v2 payment header', () => {

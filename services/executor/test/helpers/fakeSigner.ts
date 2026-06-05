@@ -10,9 +10,8 @@ export function fakeSigner() {
       signed.push({ eoa, requirements });
       return encodeXPayment({
         x402Version: X402_VERSION,
-        scheme: 'exact',
-        network: requirements.network,
         payload: { signer: eoa, value: requirements.maxAmountRequired },
+        accepted: { scheme: 'exact', network: requirements.network },
       });
     },
   };

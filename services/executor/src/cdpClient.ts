@@ -28,11 +28,16 @@ export interface CdpHooksConfig {
   usdcAddress: string;
 }
 
+export type SmartCall = { to: string; functionName: 'buy' | 'sell' | 'approve' | 'transfer'; args: unknown[] };
+
 export interface CdpHooks {
-  sendSmartAccountCall(
-    cfg: AgentConfig,
-    call: { to: string; functionName: 'buy' | 'sell' | 'approve' | 'transfer'; args: unknown[] },
-  ): Promise<string>;
+  sendSmartAccountCall(cfg: AgentConfig, call: SmartCall): Promise<string>;
+  /**
+   * Batches multiple contract calls into a SINGLE ERC-4337 user operation (one nonce, atomic).
+   * Required for approve+buy: two sequential user ops race on the same account nonce (and, on
+   * first use, the same counterfactual deploy) → `AA25 invalid account nonce`.
+   */
+  sendSmartAccountCalls(cfg: AgentConfig, calls: SmartCall[]): Promise<string>;
   faucetTo(address: string, asset: 'usdc' | 'eth'): Promise<string>;
   /** Sends USDC from an agent's EOA server account. */
   sendEoaTransfer(cfg: AgentConfig, to: string, amount: bigint): Promise<string>;
@@ -86,21 +91,31 @@ export async function buildCdpHooks(c: CdpHooksConfig): Promise<CdpHooks> {
     return { eoa, smartAccount };
   }
 
-  return {
-    async sendSmartAccountCall(cfg, call) {
-      const { smartAccount } = await ensureAgent(cfg);
-      const to = getAddress(call.to);
-      const data =
-        call.functionName === 'buy' || call.functionName === 'sell'
-          ? encodeFunctionData({ abi: AGENT_TOKEN_WRITE_ABI, functionName: call.functionName, args: call.args as never })
-          : encodeFunctionData({ abi: ERC20_WRITE_ABI, functionName: call.functionName, args: call.args as never });
+  function encodeCall(call: SmartCall): { to: `0x${string}`; data: `0x${string}` } {
+    const to = getAddress(call.to);
+    const data =
+      call.functionName === 'buy' || call.functionName === 'sell'
+        ? encodeFunctionData({ abi: AGENT_TOKEN_WRITE_ABI, functionName: call.functionName, args: call.args as never })
+        : encodeFunctionData({ abi: ERC20_WRITE_ABI, functionName: call.functionName, args: call.args as never });
+    return { to, data };
+  }
 
-      const res = await cdp.evm.sendUserOperation({
-        smartAccount: smartAccount as never,
-        network: NETWORK,
-        calls: [{ to, data }] as never,
-      });
-      return res.userOpHash;
+  async function sendCalls(cfg: AgentConfig, calls: SmartCall[]): Promise<string> {
+    const { smartAccount } = await ensureAgent(cfg);
+    const res = await cdp.evm.sendUserOperation({
+      smartAccount: smartAccount as never,
+      network: NETWORK,
+      calls: calls.map(encodeCall) as never,
+    });
+    return res.userOpHash;
+  }
+
+  return {
+    sendSmartAccountCall(cfg, call) {
+      return sendCalls(cfg, [call]);
+    },
+    sendSmartAccountCalls(cfg, calls) {
+      return sendCalls(cfg, calls);
     },
 
     async faucetTo(address, asset) {

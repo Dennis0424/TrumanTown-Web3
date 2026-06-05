@@ -35,6 +35,7 @@ async function main() {
     rpcUrl: env('RPC_URL_BASE_SEPOLIA', 'https://sepolia.base.org'),
     usdcAddress,
     sendSmartAccountCall: cdp.sendSmartAccountCall,
+    sendSmartAccountCalls: cdp.sendSmartAccountCalls,
     faucetTo: cdp.faucetTo,
     sendEoaTransfer: cdp.sendEoaTransfer,
   });

@@ -18,6 +18,11 @@ export interface CdpWalletConfig {
     cfg: AgentConfig,
     call: { to: string; functionName: 'buy' | 'sell' | 'approve' | 'transfer'; args: unknown[] },
   ) => Promise<string>;
+  /** Batches calls into one ERC-4337 user op (atomic, single nonce) — used for approve+buy. */
+  sendSmartAccountCalls: (
+    cfg: AgentConfig,
+    calls: { to: string; functionName: 'buy' | 'sell' | 'approve' | 'transfer'; args: unknown[] }[],
+  ) => Promise<string>;
   faucetTo: (address: string, asset: 'usdc' | 'eth') => Promise<string>;
   /** Sends USDC from the agent's EOA (x402 payer). From cdpClient.ts. */
   sendEoaTransfer: (cfg: AgentConfig, to: string, amount: bigint) => Promise<string>;
@@ -37,8 +42,12 @@ export function createCdpWalletProvider(c: CdpWalletConfig): WalletProvider {
       return (await publicClient.readContract({ address: getAddress(token), abi: AGENT_TOKEN_ABI, functionName: 'marketCap', args: [] })) as bigint;
     },
     async buy(cfg, token, usdcIn, minTokensOut) {
-      await c.sendSmartAccountCall(cfg, { to: c.usdcAddress, functionName: 'approve', args: [getAddress(token), usdcIn] });
-      return c.sendSmartAccountCall(cfg, { to: token, functionName: 'buy', args: [usdcIn, minTokensOut] });
+      // approve + buy in ONE user op: two sequential ops race on the same nonce (and the
+      // first-use counterfactual deploy) → AA25 invalid account nonce.
+      return c.sendSmartAccountCalls(cfg, [
+        { to: c.usdcAddress, functionName: 'approve', args: [getAddress(token), usdcIn] },
+        { to: token, functionName: 'buy', args: [usdcIn, minTokensOut] },
+      ]);
     },
     async sell(cfg, token, tokensIn, minUsdcOut) {
       return c.sendSmartAccountCall(cfg, { to: token, functionName: 'sell', args: [tokensIn, minUsdcOut] });

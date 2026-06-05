@@ -29,11 +29,15 @@ async function main() {
     scheme: 'exact', network: 'eip155:84532', maxAmountRequired: '10000',
     resource: 'http://gw.local/v1/chat/completions', description: 'TrumanTown live verify',
     mimeType: 'application/json', payTo, maxTimeoutSeconds: 120, asset: usdcAddress,
+    extra: { name: 'USDC', version: '2' }, // EIP-712 domain — required by @x402/evm exact scheme
   };
   const xPayment = await signer.sign(agent.eoa, requirements);
   const paymentPayload = decodeXPayment(xPayment);
   console.log('[live:verify] x402Version in payload:', paymentPayload.x402Version);
-  const res = await fetch(`${facilitatorUrl}/verify`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ paymentPayload, paymentRequirements: requirements }) });
+  // Facilitator/@x402 use `amount` (not our 402-challenge `maxAmountRequired`).
+  const { maxAmountRequired, ...rest } = requirements;
+  const facReq = { ...rest, amount: maxAmountRequired };
+  const res = await fetch(`${facilitatorUrl}/verify`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ x402Version: 2, paymentPayload, paymentRequirements: facReq }) });
   const body = (await res.json()) as { isValid?: boolean; invalidReason?: string };
   console.log('[live:verify] facilitator /verify ->', body);
   if (!body.isValid) throw new Error(`facilitator rejected payload: ${body.invalidReason ?? 'unknown'}`);

@@ -17,7 +17,9 @@ export function createKeeperMarkDead(opts: {
   registry?: string;
 }): ((agentId: string) => Promise<string>) | undefined {
   if (!opts.privateKey || !opts.registry) return undefined;
-  const account = privateKeyToAccount(opts.privateKey as `0x${string}`);
+  // Accept the key with or without a 0x prefix (Foundry/cast emit raw hex); viem requires 0x.
+  const pk = opts.privateKey.startsWith('0x') ? opts.privateKey : `0x${opts.privateKey}`;
+  const account = privateKeyToAccount(pk as `0x${string}`);
   const client = createWalletClient({ account, chain: baseSepolia, transport: http(opts.rpcUrl) });
   const address = getAddress(opts.registry);
   return async (agentId: string) => {

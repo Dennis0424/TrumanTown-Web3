@@ -14,8 +14,8 @@
  *    tunnel correctly. GLOBAL_AGENT_NO_PROXY keeps loopback calls (facilitator on 127.0.0.1)
  *    direct, while remote calls (CDP, Base Sepolia RPC) go through the proxy.
  *
- * NOTE: @coinbase/cdp-sdk requires Node >= 19 (it throws on Node 18 at CdpClient construction),
- * so the executor service runs on Node 20 — separate from the repo's Node-18 Convex toolchain.
+ * NOTE: @coinbase/cdp-sdk requires Node >= 19 (it throws on Node 18 at CdpClient construction).
+ * The whole repo runs on Node 24 (see CLAUDE.md), which satisfies this.
  */
 import 'dotenv/config';
 import { bootstrap } from 'global-agent';

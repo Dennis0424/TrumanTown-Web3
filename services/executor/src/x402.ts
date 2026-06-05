@@ -18,11 +18,12 @@ export interface PaymentRequirements {
   extra?: Record<string, unknown>; // EIP-712 domain etc.
 }
 
+// @x402 v2 `exact` payload: scheme/network live under `accepted`, not at top level.
 export interface PaymentPayload {
   x402Version: number;
-  scheme: string;
-  network: string;
   payload: unknown; // exact-scheme specific (signature + authorization)
+  resource?: unknown;
+  accepted?: Record<string, unknown>;
 }
 
 export function encodeXPayment(p: PaymentPayload): string {
@@ -37,14 +38,7 @@ export function decodeXPayment(header: string): PaymentPayload {
     throw new Error('X-PAYMENT is not valid base64 JSON');
   }
   const p = parsed as PaymentPayload;
-  if (
-    !p ||
-    typeof p.x402Version !== 'number' ||
-    p.x402Version !== X402_VERSION ||
-    p.scheme !== 'exact' ||
-    typeof p.network !== 'string' ||
-    p.payload == null
-  ) {
+  if (!p || typeof p.x402Version !== 'number' || p.x402Version !== X402_VERSION || p.payload == null) {
     throw new Error('X-PAYMENT missing required fields');
   }
   return p;
