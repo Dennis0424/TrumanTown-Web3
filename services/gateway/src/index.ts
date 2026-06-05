@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { createGateway } from './gateway.js';
 import { staticResolver, type AgentPrice } from './pricing.js';
 import { createRegistryResolver, viemRegistryReader } from './registryResolver.js';

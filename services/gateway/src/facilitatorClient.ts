@@ -11,6 +11,13 @@ export interface Facilitator {
   settle(payload: PaymentPayload, requirements: PaymentRequirements): Promise<SettleResponse>;
 }
 
+// The @x402 facilitator expects `amount` (not our 402-challenge field `maxAmountRequired`).
+// Map our local PaymentRequirements into the lib/facilitator shape for /verify and /settle.
+function toFacilitatorRequirements(r: PaymentRequirements): Record<string, unknown> {
+  const { maxAmountRequired, ...rest } = r;
+  return { ...rest, amount: maxAmountRequired };
+}
+
 async function post<T>(url: string, body: unknown): Promise<T> {
   const r = await fetch(url, {
     method: 'POST',
@@ -28,13 +35,13 @@ export function httpFacilitator(baseUrl: string): Facilitator {
       post<VerifyResponse>(`${root}/verify`, {
         x402Version: X402_VERSION,
         paymentPayload,
-        paymentRequirements,
+        paymentRequirements: toFacilitatorRequirements(paymentRequirements),
       }),
     settle: (paymentPayload, paymentRequirements) =>
       post<SettleResponse>(`${root}/settle`, {
         x402Version: X402_VERSION,
         paymentPayload,
-        paymentRequirements,
+        paymentRequirements: toFacilitatorRequirements(paymentRequirements),
       }),
   };
 }

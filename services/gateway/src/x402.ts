@@ -26,11 +26,14 @@ export interface ExactEvmAuthorization {
   nonce: string;
 }
 
+// @x402 v2 `exact` wire payload (what @x402/core's client emits and the facilitator expects):
+// scheme/network live under `accepted`, NOT at top level. We forward this object as-is to the
+// facilitator, so we only assert the fields we depend on.
 export interface PaymentPayload {
   x402Version: number;
-  scheme: 'exact';
-  network: string;
   payload: { signature: string; authorization: ExactEvmAuthorization };
+  resource?: { url: string; description?: string; mimeType?: string };
+  accepted?: Record<string, unknown>;
 }
 
 export interface VerifyResponse {
@@ -64,8 +67,6 @@ export function decodePayment(header: string): PaymentPayload {
   if (
     !p ||
     p.x402Version !== X402_VERSION ||
-    p.scheme !== 'exact' ||
-    typeof p.network !== 'string' ||
     !p.payload ||
     typeof p.payload.signature !== 'string' ||
     !p.payload.authorization ||

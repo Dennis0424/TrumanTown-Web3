@@ -3,7 +3,7 @@ import { SettlementQueue, type QueueItem } from '../src/settlementQueue.js';
 import type { Facilitator } from '../src/facilitatorClient.js';
 
 const item = (n: number): QueueItem => ({
-  payload: { x402Version: 2, scheme: 'exact', network: 'eip155:84532', payload: { signature: '0x' + n, authorization: { from: '0xa', to: '0xb', value: '1', validAfter: '0', validBefore: '9', nonce: '0x' + n } } },
+  payload: { x402Version: 2, payload: { signature: '0x' + n, authorization: { from: '0xa', to: '0xb', value: '1', validAfter: '0', validBefore: '9', nonce: '0x' + n } }, accepted: { scheme: 'exact', network: 'eip155:84532' } },
   requirements: { scheme: 'exact', network: 'eip155:84532', maxAmountRequired: '10000', resource: 'r', description: 'd', mimeType: 'application/json', payTo: '0xb', maxTimeoutSeconds: 120, asset: '0xusdc' },
 });
 

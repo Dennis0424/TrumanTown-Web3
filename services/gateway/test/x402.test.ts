@@ -3,8 +3,6 @@ import { encodePayment, decodePayment, X402_VERSION, type PaymentPayload } from 
 
 const sample: PaymentPayload = {
   x402Version: X402_VERSION,
-  scheme: 'exact',
-  network: 'eip155:84532',
   payload: {
     signature: '0xdeadbeef',
     authorization: {
@@ -16,6 +14,8 @@ const sample: PaymentPayload = {
       nonce: '0xabc',
     },
   },
+  // @x402 v2: scheme/network live under `accepted`, not at top level.
+  accepted: { scheme: 'exact', network: 'eip155:84532' },
 };
 
 describe('x402 payment header', () => {

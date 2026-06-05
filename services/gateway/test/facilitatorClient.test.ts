@@ -34,7 +34,10 @@ describe('httpFacilitator', () => {
     const f = httpFacilitator(baseUrl);
     const res = await f.verify(payload, requirements);
     expect(res).toEqual({ isValid: true, payer: '0xa' });
-    expect(lastBody).toEqual({ x402Version: X402_VERSION, paymentPayload: payload, paymentRequirements: requirements });
+    // The client maps our `maxAmountRequired` -> the facilitator/@x402 `amount` field.
+    const { maxAmountRequired, ...rest } = requirements;
+    const facReq = { ...rest, amount: maxAmountRequired };
+    expect(lastBody).toEqual({ x402Version: X402_VERSION, paymentPayload: payload, paymentRequirements: facReq });
   });
 
   it('settle posts x402 envelope and parses response', async () => {
