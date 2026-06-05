@@ -107,6 +107,13 @@ export async function buildCdpHooks(c: CdpHooksConfig): Promise<CdpHooks> {
       network: NETWORK,
       calls: calls.map(encodeCall) as never,
     });
+    // Wait for on-chain inclusion before returning. sendUserOperation only SUBMITS (returns a
+    // userOpHash); callers (revive flow, convex tryRaiseUsdc) read balances right after and would
+    // otherwise race the bundler — e.g. re-sign sees the un-swept EOA and 402s.
+    const receipt = await (smartAccount as {
+      waitForUserOperation: (o: { userOpHash: string }) => Promise<{ status?: string }>;
+    }).waitForUserOperation({ userOpHash: res.userOpHash });
+    if (receipt?.status === 'failed') throw new Error(`user op ${res.userOpHash} failed on-chain`);
     return res.userOpHash;
   }
 

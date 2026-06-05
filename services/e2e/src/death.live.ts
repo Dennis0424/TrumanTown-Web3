@@ -71,13 +71,23 @@ async function main() {
   if (status !== 'dead') throw new Error(`agent did not die after ${T + 1} ticks (status=${status})`);
 
   const agentDiedEvent = parseAbiItem('event AgentDied(uint256 indexed agentId)');
-  const logs = await client.getLogs({
-    address: getAddress(REGISTRY),
-    event: agentDiedEvent,
-    args: { agentId: BigInt(AGENT_ID) },
-    fromBlock,
-    toBlock: 'latest',
-  });
+  // Public RPCs index tx receipts BEFORE log filters, so a getLogs issued the instant markDead
+  // mines can return []. Poll a few times to ride out that eventual-consistency lag.
+  let logs: Awaited<ReturnType<typeof client.getLogs>> = [];
+  for (let attempt = 1; attempt <= 15; attempt++) {
+    logs = await client.getLogs({
+      address: getAddress(REGISTRY),
+      event: agentDiedEvent,
+      args: { agentId: BigInt(AGENT_ID) },
+      fromBlock,
+      toBlock: 'latest',
+    });
+    if (logs.length > 0) break;
+    if (attempt < 15) {
+      console.log(`[death] AgentDied not indexed yet (attempt ${attempt}); retrying in 2s...`);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
   console.log('[death] AgentDied logs found:', logs.length);
 
   const a = (await client.readContract({

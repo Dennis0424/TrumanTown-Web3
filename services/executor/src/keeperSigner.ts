@@ -1,4 +1,4 @@
-import { createWalletClient, http, getAddress } from 'viem';
+import { createWalletClient, createPublicClient, http, getAddress } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { baseSepolia } from 'viem/chains';
 
@@ -21,13 +21,18 @@ export function createKeeperMarkDead(opts: {
   const pk = opts.privateKey.startsWith('0x') ? opts.privateKey : `0x${opts.privateKey}`;
   const account = privateKeyToAccount(pk as `0x${string}`);
   const client = createWalletClient({ account, chain: baseSepolia, transport: http(opts.rpcUrl) });
+  const publicClient = createPublicClient({ chain: baseSepolia, transport: http(opts.rpcUrl) });
   const address = getAddress(opts.registry);
   return async (agentId: string) => {
-    return client.writeContract({
+    const hash = await client.writeContract({
       address,
       abi: REGISTRY_MARKDEAD_ABI,
       functionName: 'markDead',
       args: [BigInt(agentId)],
     });
+    // Wait for inclusion so callers (death e2e) can immediately query the AgentDied event
+    // and agents(id).alive without racing the tx.
+    await publicClient.waitForTransactionReceipt({ hash });
+    return hash;
   };
 }
