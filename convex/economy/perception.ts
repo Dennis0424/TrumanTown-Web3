@@ -32,6 +32,20 @@ export const getAgentEconomy = internalQuery({
   },
 });
 
+/** E2E/demo helper: drop the agent's economy row so the next tick rebuilds it from
+ *  scratch as `alive` (death is terminal in the state machine — this is the only reset). */
+export const deleteAgentEconomy = internalMutation({
+  args: { worldId: v.id('worlds'), agentId },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query('agentEconomy')
+      .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('agentId', args.agentId))
+      .first();
+    if (existing) await ctx.db.delete(existing._id);
+    return existing ? 1 : 0;
+  },
+});
+
 export const upsertAgentEconomy = internalMutation({
   args: {
     worldId: v.id('worlds'),

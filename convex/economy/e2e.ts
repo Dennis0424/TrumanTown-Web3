@@ -21,6 +21,25 @@ export const tickOnce = action({
 });
 
 /**
+ * Gated public action: clears the default agent's economy row. Death is terminal in the
+ * survival state machine, so this is the only way to restart the lifecycle (the next tick
+ * rebuilds the row as `alive`). Inert unless TRUMANTOWN_E2E=1.
+ */
+export const resetStatus = action({
+  args: {},
+  handler: async (ctx): Promise<{ reset: boolean }> => {
+    if (!e2eEnabled()) return { reset: false };
+    const wa = await ctx.runQuery(internal.economy.perception.getDefaultWorldAgent, {});
+    if (!wa) return { reset: false };
+    await ctx.runMutation(internal.economy.perception.deleteAgentEconomy, {
+      worldId: wa.worldId,
+      agentId: wa.agentId,
+    });
+    return { reset: true };
+  },
+});
+
+/**
  * Gated public action: the default agent's current economy row (status/energy/marketCap).
  * An action (not a query) so it can `ctx.runQuery` the existing internalQueries — Convex
  * query contexts don't expose runQuery, actions do.
