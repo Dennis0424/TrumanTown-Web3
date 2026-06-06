@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {InteractionHub} from "../src/InteractionHub.sol";
 import {MockUSDC} from "../src/MockUSDC.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract InteractionHubTest is Test {
     InteractionHub hub;
@@ -54,7 +55,17 @@ contract InteractionHubTest is Test {
         emit InteractionHub.PayoutSet(0, eoa);
         hub.setPayout(0, eoa);
         vm.prank(human);
-        vm.expectRevert(); // Ownable: caller is not the owner
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, human));
         hub.setPayout(0, human);
+    }
+
+    function test_setMinPrice_onlyOwner_andEmits() public {
+        vm.expectEmit(false, false, false, true);
+        emit InteractionHub.MinPriceSet(20000);
+        hub.setMinPrice(20000);
+        assertEq(hub.minPrice(), 20000);
+        vm.prank(human);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, human));
+        hub.setMinPrice(20000);
     }
 }

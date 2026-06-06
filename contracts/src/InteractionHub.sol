@@ -19,11 +19,13 @@ contract InteractionHub is Ownable {
     event MinPriceSet(uint256 minPrice);
 
     constructor(address usdc_, uint256 minPrice_) Ownable(msg.sender) {
+        require(usdc_ != address(0), "zero usdc");
         usdc = IERC20(usdc_);
         minPrice = minPrice_;
     }
 
     function setPayout(uint256 agentId, address eoa) external onlyOwner {
+        require(eoa != address(0), "zero eoa");
         payoutEOA[agentId] = eoa;
         emit PayoutSet(agentId, eoa);
     }
