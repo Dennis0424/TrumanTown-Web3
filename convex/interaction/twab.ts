@@ -26,12 +26,19 @@ export interface WeightedVoice {
 export function twabScore(trades: TradeRow[], nowMs: number, windowMs: number): number {
   const windowStart = nowMs - windowMs;
 
-  // 过滤窗口内的交易，按时间升序
-  const recent = trades
-    .filter((t) => t.ts >= windowStart && t.ts <= nowMs)
-    .sort((a, b) => a.ts - b.ts);
+  // Sort all trades by time ascending
+  const sorted = [...trades].filter((t) => t.ts <= nowMs).sort((a, b) => a.ts - b.ts);
 
+  // Seed balance from trades BEFORE the window (so long-term holders get credit)
   let balance = BigInt(0);
+  for (const t of sorted) {
+    if (t.ts >= windowStart) break;
+    if (t.side === 'buy') balance += BigInt(t.tokens);
+    else { balance -= BigInt(t.tokens); if (balance < 0n) balance = 0n; }
+  }
+
+  // Only accumulate token-days for trades within the window
+  const recent = sorted.filter((t) => t.ts >= windowStart);
   let prevTs = windowStart;
   let tokenDays = 0;
 
@@ -43,7 +50,7 @@ export function twabScore(trades: TradeRow[], nowMs: number, windowMs: number): 
       balance += BigInt(t.tokens);
     } else {
       balance -= BigInt(t.tokens);
-      if (balance < 0n) balance = 0n; // 防负数（数据异常保护）
+      if (balance < 0n) balance = 0n;
     }
   }
 
@@ -73,7 +80,8 @@ export function twabTopK(
 
   const voices: WeightedVoice[] = [];
   for (const [sender, { text }] of bySender) {
-    const score = holderScores[sender] ?? 0;
+    // Normalize to lowercase to match holderScores keys (which are lowercased from Ponder)
+    const score = holderScores[sender.toLowerCase()] ?? 0;
     if (score <= 0) continue; // 无持仓不进 prompt
     voices.push({ sender, text, weight: score });
   }

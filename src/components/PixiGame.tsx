@@ -15,7 +15,7 @@ import { PositionIndicator } from './PositionIndicator.tsx';
 import { SHOW_DEBUG_UI } from './Game.tsx';
 import { ServerGame } from '../hooks/serverGame.ts';
 import { usePonderAgent } from '../web3/usePonderAgent.ts';
-import { economyToGauge } from '../web3/gauge.ts';
+import { economyToGauge, type GaugeView } from '../web3/gauge.ts';
 
 export const PixiGame = (props: {
   worldId: Id<'worlds'>;

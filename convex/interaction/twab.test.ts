@@ -30,12 +30,13 @@ describe('twabScore', () => {
     expect(twabScore(trades, NOW, 30 * DAY)).toBeCloseTo(15000);
   });
 
-  it('ignores trades outside the window', () => {
-    const oldBuy = buy('9999', NOW - 40 * DAY); // outside 30-day window
-    const recentBuy = buy('100', NOW - 5 * DAY);
+  it('pre-window buy seeds balance: holder who bought before window and held through gets credit', () => {
+    const oldBuy = buy('9999', NOW - 40 * DAY); // bought before window, still holding
+    const recentBuy = buy('100', NOW - 5 * DAY); // also bought within window
     const score = twabScore([oldBuy, recentBuy], NOW, 30 * DAY);
-    // only recentBuy counts → 100 * 5 = 500
-    expect(score).toBeCloseTo(500);
+    // oldBuy seeds balance=9999 at windowStart; held 25 days then recentBuy adds 100
+    // 9999*25 + 10099*5 = 249975 + 50495 = 300470
+    expect(score).toBeCloseTo(300470);
   });
 
   it('returns 0 if all tokens sold before now', () => {
@@ -58,7 +59,8 @@ describe('twabTopK', () => {
       { sender: '0xA', text: 'low', ts: 1 },
       { sender: '0xB', text: 'high', ts: 2 },
     ];
-    const scores: Record<string, number> = { '0xA': 100, '0xB': 999 };
+    // holderScores keys must be lowercase (as returned by Ponder)
+    const scores: Record<string, number> = { '0xa': 100, '0xb': 999 };
     const result = twabTopK(whispers, scores, 3);
     expect(result[0].sender).toBe('0xB');
     expect(result[1].sender).toBe('0xA');
@@ -69,7 +71,7 @@ describe('twabTopK', () => {
       { sender: '0xA', text: 'old', ts: 1 },
       { sender: '0xA', text: 'new', ts: 10 },
     ];
-    const scores: Record<string, number> = { '0xA': 500 };
+    const scores: Record<string, number> = { '0xa': 500 };
     const result = twabTopK(whispers, scores, 3);
     expect(result).toHaveLength(1);
     expect(result[0].text).toBe('new');
@@ -77,13 +79,13 @@ describe('twabTopK', () => {
 
   it('excludes senders with score 0 (no holding)', () => {
     const whispers: WhisperRow[] = [{ sender: '0xZ', text: 'hi', ts: 1 }];
-    const scores: Record<string, number> = { '0xZ': 0 };
+    const scores: Record<string, number> = { '0xz': 0 };
     expect(twabTopK(whispers, scores, 3)).toEqual([]);
   });
 
   it('respects K limit', () => {
     const whispers: WhisperRow[] = ['0xA','0xB','0xC','0xD'].map(s => ({ sender: s, text: s, ts: 1 }));
-    const scores: Record<string, number> = { '0xA': 1, '0xB': 2, '0xC': 3, '0xD': 4 };
+    const scores: Record<string, number> = { '0xa': 1, '0xb': 2, '0xc': 3, '0xd': 4 };
     expect(twabTopK(whispers, scores, 2)).toHaveLength(2);
   });
 });

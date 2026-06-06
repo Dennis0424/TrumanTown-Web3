@@ -1,5 +1,6 @@
 import { v } from 'convex/values';
-import { internalQuery, internalMutation, mutation } from '../_generated/server';
+import { internalQuery, internalMutation, mutation, action } from '../_generated/server';
+import { internal } from '../_generated/api';
 import { verifyMessage } from 'viem';
 import { interactionEnabled, ponderUrl } from './constants';
 
@@ -11,7 +12,28 @@ export function mapImportance(weight: number): number {
   return Math.max(0, Math.min(9, i));
 }
 
-/** Resolve the default world's resident: engine agentId + playerId (memories key on playerId). */
+/**
+ * Resolve a specific resident by econAgentId (= world.agents array index).
+ * econAgentId "0" → world.agents[0], "1" → world.agents[1], etc.
+ */
+export const getResidentByEconId = internalQuery({
+  args: { onchainAgentId: v.string() },
+  handler: async (ctx, { onchainAgentId }) => {
+    const status = await ctx.db
+      .query('worldStatus')
+      .filter((q) => q.eq(q.field('isDefault'), true))
+      .first();
+    if (!status) return null;
+    const world = await ctx.db.get(status.worldId);
+    if (!world) return null;
+    const index = parseInt(onchainAgentId, 10);
+    const agent = world.agents[index];
+    if (!agent) return null;
+    return { worldId: status.worldId, agentId: agent.id, playerId: agent.playerId };
+  },
+});
+
+/** @deprecated Use getResidentByEconId. Kept for SP3 whisper tick backward compat. */
 export const getDefaultResident = internalQuery({
   args: {},
   handler: async (ctx) => {
@@ -110,12 +132,39 @@ export const writeWhisperMemory = internalMutation({
   },
 });
 
+/** Internal mutation: write the whisper row (no network I/O allowed in mutations). */
+export const insertWhisperDirect = internalMutation({
+  args: {
+    onchainAgentId: v.string(),
+    sender: v.string(),
+    text: v.string(),
+    ts: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const logId = `direct-${args.sender}-${args.ts}`;
+    // Check for duplicate (same sender + same second)
+    const existing = await ctx.db
+      .query('whispers')
+      .withIndex('logId', (q) => q.eq('whisperLogId', logId))
+      .first();
+    if (existing) return;
+    await ctx.db.insert('whispers', {
+      onchainAgentId: args.onchainAgentId,
+      whisperLogId: logId,
+      sender: args.sender,
+      amount: '0',
+      text: args.text,
+      ts: args.ts,
+      memoryWritten: false,
+    });
+  },
+});
+
 /**
  * SP4 持币耳语：免费直写，身份由 Ethereum 签名验证。
- * 调用方：前端钱包 signMessage(text) → 传入 signature + address。
- * 权重在 queryPromptData 里读 Ponder holders 实时算，不存在本表。
+ * Must be an action (not mutation) because it calls fetch() for TWAB check.
  */
-export const submitWhisper = mutation({
+export const submitWhisper = action({
   args: {
     onchainAgentId: v.string(),
     text: v.string(),
@@ -156,16 +205,11 @@ export const submitWhisper = mutation({
       }
     }
 
-    // 写入 whispers 表（amount="0" 表示免费耳语）
-    const logId = `direct-${args.sender}-${Date.now()}`;
-    await ctx.db.insert('whispers', {
+    await ctx.runMutation(internal.interaction.whispers.insertWhisperDirect, {
       onchainAgentId: args.onchainAgentId,
-      whisperLogId: logId,
       sender: args.sender,
-      amount: '0',
       text: args.text,
       ts: Date.now(),
-      memoryWritten: false,
     });
   },
 });

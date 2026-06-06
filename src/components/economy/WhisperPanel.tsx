@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount, useChainId, useSwitchChain, useSignMessage } from 'wagmi';
-import { useMutation } from 'convex/react';
+import { useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { CHAIN_ID, DEFAULT_AGENT_ID, PONDER_URL } from '../../web3/constants';
 
@@ -29,7 +29,7 @@ export function WhisperPanel({ agentId = DEFAULT_AGENT_ID }: { agentId?: string 
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const { signMessageAsync } = useSignMessage();
-  const submitWhisper = useMutation(api.interaction.whispers.submitWhisper);
+  const submitWhisper = useAction(api.interaction.whispers.submitWhisper);
 
   const [text, setText] = useState('');
   const [phase, setPhase] = useState<WhisperPhase>('idle');

@@ -14,7 +14,7 @@ export const runWhisperTick = internalAction({
     if (!purl) return;
     const onchainAgentId = defaultOnchainAgentId();
 
-    const resident = await ctx.runQuery(internal.interaction.whispers.getDefaultResident, {});
+    const resident = await ctx.runQuery(internal.interaction.whispers.getResidentByEconId, { onchainAgentId });
     if (!resident) return;
 
     const sinceSec = await ctx.runQuery(internal.interaction.whispers.getCursor, { onchainAgentId });
