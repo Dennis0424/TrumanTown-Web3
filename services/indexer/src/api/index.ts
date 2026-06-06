@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { db } from 'ponder:api';
-import { agent, whisper, alliance } from 'ponder:schema';
-import { eq, gte, and, desc, or } from 'ponder';
+import { agent, whisper, alliance, trade } from 'ponder:schema';
+import { eq, gte, and, desc, or, asc } from 'ponder';
 import { buildAgentAggregate, type AgentRow } from '../aggregate.js';
 
 const app = new Hono();
@@ -71,6 +71,66 @@ app.get('/agents/:id/rivals', async (c) => {
     }));
 
   return c.json(rivals);
+});
+
+// SP4: 持币信任分 — 按 TWAB（时间加权平均持仓）返回每个持币地址的信任分
+// ?window=<天数> 默认 30 天
+app.get('/agents/:id/holders', async (c) => {
+  const agentId = c.req.param('id');
+  const windowDays = Number(c.req.query('window') ?? '30');
+  const windowMs = windowDays * 24 * 60 * 60 * 1000;
+
+  // 取该 agent 的所有 trade 记录，按时间升序
+  const trades = await db
+    .select()
+    .from(trade)
+    .where(eq(trade.agentId, agentId))
+    .orderBy(asc(trade.timestamp));
+
+  // 按 actor 分组
+  const byActor: Record<string, Array<{ side: string; tokens: bigint; ts: number }>> = {};
+  for (const t of trades) {
+    if (!byActor[t.actor]) byActor[t.actor] = [];
+    byActor[t.actor].push({
+      side: t.side,
+      tokens: t.tokens,
+      ts: Number(t.timestamp) * 1000, // Ponder timestamp 是秒，转 ms
+    });
+  }
+
+  const nowMs = Date.now();
+
+  // 计算每个 actor 的 TWAB 分（token-days）
+  const holders: Array<{ address: string; twabScore: number }> = [];
+  for (const [address, actorTrades] of Object.entries(byActor)) {
+    let balance = 0n;
+    let prevTs = nowMs - windowMs;
+    let tokenDays = 0;
+
+    const sorted = actorTrades
+      .filter((t) => t.ts <= nowMs)
+      .sort((a, b) => a.ts - b.ts);
+
+    for (const t of sorted) {
+      const effectiveTs = Math.max(t.ts, nowMs - windowMs);
+      const dtDays = (effectiveTs - prevTs) / (24 * 60 * 60 * 1000);
+      if (dtDays > 0) tokenDays += Number(balance) * dtDays;
+      prevTs = effectiveTs;
+      if (t.side === 'buy') {
+        balance += t.tokens;
+      } else {
+        balance -= t.tokens;
+        if (balance < 0n) balance = 0n;
+      }
+    }
+    const finalDt = (nowMs - prevTs) / (24 * 60 * 60 * 1000);
+    if (finalDt > 0) tokenDays += Number(balance) * finalDt;
+
+    if (tokenDays > 0) holders.push({ address, twabScore: tokenDays });
+  }
+
+  holders.sort((a, b) => b.twabScore - a.twabScore);
+  return c.json(holders);
 });
 
 export default app;
