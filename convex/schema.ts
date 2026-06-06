@@ -6,6 +6,7 @@ import { conversationId, playerId } from './aiTown/ids';
 import { engineTables } from './engine/schema';
 import { economyTables } from './economy/schema';
 import { interactionTables } from './interaction/schema';
+import { rivalryTables } from './rivalry/schema';
 
 export default defineSchema({
   music: defineTable({
@@ -28,4 +29,5 @@ export default defineSchema({
   ...engineTables,
   ...economyTables,
   ...interactionTables,
+  ...rivalryTables,
 });
