@@ -14,7 +14,7 @@ export interface WeightedVoice {
 /**
  * Aggregate whispers per sender (sum amounts) → weight = sqrt(total) (quadratic: damps whales,
  * and aggregation closes the "split into many" sybil hole). Return the top-K senders by weight,
- * each represented by their most recent whisper text. Deterministic: sort by weight desc, then ts desc.
+ * each represented by their most recent whisper text. Deterministic: sort by weight desc, then ts asc (oldest sender wins ties).
  */
 export function quadraticTopK(rows: WhisperRow[], k: number): WeightedVoice[] {
   const bySender = new Map<string, { total: bigint; text: string; ts: number }>();
