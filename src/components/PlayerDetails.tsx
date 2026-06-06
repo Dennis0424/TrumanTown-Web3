@@ -11,6 +11,7 @@ import { GameId } from '../../convex/aiTown/ids';
 import { ServerGame } from '../hooks/serverGame';
 import { TradePanel } from './economy/TradePanel';
 import { WhisperPanel } from './economy/WhisperPanel';
+import { RivalryPanel } from './economy/RivalryPanel';
 
 export default function PlayerDetails({
   worldId,
@@ -237,6 +238,7 @@ export default function PlayerDetails({
       </div>
       {!isMe && <TradePanel />}
       {!isMe && <WhisperPanel />}
+      {!isMe && <RivalryPanel agentId="0" />}
       {!isMe && playerConversation && playerStatus?.kind === 'participating' && (
         <Messages
           worldId={worldId}
