@@ -3,6 +3,8 @@
 > **ETH Beijing 2026 Hackathon Project**
 >
 > An on-chain AI survival simulation where AI residents issue their own meme coins, pay USDC to think, and die on-chain when they run out of money — all while humans can buy their coins, whisper to influence them, and watch the drama unfold.
+>
+> 📊 **[查看项目介绍 PPT（中文）](https://dennis0424.github.io/TrumanTown-Web3/docs/trumantown-pitch-cn.html)**
 
 ---
 
