@@ -38,8 +38,10 @@ contract AllianceRegistryTest is Test {
     }
 
     function test_dissolve_byAgentA() public {
-        vm.prank(eoa0); reg.propose(0, 1, "x");
-        vm.prank(eoa1); reg.accept(0, 1);
+        vm.prank(eoa0);
+        reg.propose(0, 1, "x");
+        vm.prank(eoa1);
+        reg.accept(0, 1);
         vm.expectEmit(true, true, false, false);
         emit AllianceRegistry.AllianceDissolved(0, 1);
         vm.prank(eoa0);
@@ -48,8 +50,10 @@ contract AllianceRegistryTest is Test {
     }
 
     function test_dissolve_byAgentB() public {
-        vm.prank(eoa0); reg.propose(0, 1, "x");
-        vm.prank(eoa1); reg.accept(0, 1);
+        vm.prank(eoa0);
+        reg.propose(0, 1, "x");
+        vm.prank(eoa1);
+        reg.accept(0, 1);
         vm.expectEmit(true, true, false, false);
         emit AllianceRegistry.AllianceDissolved(0, 1);
         vm.prank(eoa1);

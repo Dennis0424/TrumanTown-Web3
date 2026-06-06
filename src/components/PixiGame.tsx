@@ -14,6 +14,9 @@ import { DebugPath } from './DebugPath.tsx';
 import { PositionIndicator } from './PositionIndicator.tsx';
 import { SHOW_DEBUG_UI } from './Game.tsx';
 import { ServerGame } from '../hooks/serverGame.ts';
+import { usePonderAgent } from '../web3/usePonderAgent.ts';
+import { economyToGauge, GaugeView } from '../web3/gauge.ts';
+import { DEFAULT_AGENT_ID } from '../web3/constants.ts';
 
 export const PixiGame = (props: {
   worldId: Id<'worlds'>;
@@ -33,12 +36,32 @@ export const PixiGame = (props: {
     (p) => p.human === humanTokenIdentifier,
   )?.id;
 
+  // SP2: economy gauge data. Convex query works here (ConvexProvider is re-propagated
+  // inside <Stage> by Game.tsx). Ponder via provider-free polling hook.
+  const agentStatus = useQuery(api.economy.public.getAgentStatus);
+  const { data: standing } = usePonderAgent(DEFAULT_AGENT_ID);
+  const gaugeView: GaugeView | undefined =
+    agentStatus && standing
+      ? economyToGauge({
+          status: agentStatus.status,
+          energy: agentStatus.energy,
+          starvingPeriods: agentStatus.starvingPeriods,
+          recoveryWindow: agentStatus.recoveryWindow,
+          marketCap: BigInt(standing.marketCap || '0'),
+          alive: standing.alive,
+        })
+      : undefined;
+
+  // agentStatus.playerId is a GameId<'agents'>; find its player via world.agents map
+  const gaugePlayerId = agentStatus
+    ? [...props.game.world.agents.values()].find((a) => a.id === agentStatus.playerId)?.playerId
+    : undefined;
+
   const moveTo = useSendInput(props.engineId, 'moveTo');
 
   // Interaction for clicking on the world to navigate.
   const dragStart = useRef<{ screenX: number; screenY: number } | null>(null);
   const onMapPointerDown = (e: any) => {
-    // https://pixijs.download/dev/docs/PIXI.FederatedPointerEvent.html
     dragStart.current = { screenX: e.screenX, screenY: e.screenY };
   };
 
@@ -82,7 +105,7 @@ export const PixiGame = (props: {
   const { width, height, tileDim } = props.game.worldMap;
   const players = [...props.game.world.players.values()];
 
-  // Zoom on the user’s avatar when it is created
+  // Zoom on the user's avatar when it is created
   useEffect(() => {
     if (!viewportRef.current || humanPlayerId === undefined) return;
 
@@ -109,7 +132,6 @@ export const PixiGame = (props: {
       />
       {players.map(
         (p) =>
-          // Only show the path for the human player in non-debug mode.
           (SHOW_DEBUG_UI || p.id === humanPlayerId) && (
             <DebugPath key={`path-${p.id}`} player={p} tileDim={tileDim} />
           ),
@@ -123,6 +145,7 @@ export const PixiGame = (props: {
           isViewer={p.id === humanPlayerId}
           onClick={props.setSelectedElement}
           historicalTime={props.historicalTime}
+          gauge={p.id === gaugePlayerId ? gaugeView : undefined}
         />
       ))}
     </PixiViewport>

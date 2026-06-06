@@ -709,3 +709,15 @@ and [runtime validation](https://docs.convex.dev/database/schemas#validators) fo
 [database data](https://docs.convex.dev/database/schemas#schema-validation).
 
 Everything scales automatically, and it’s [free to start](https://www.convex.dev/plans).
+
+
+## SP2 frontend (human trading + life gauges)
+
+Copy `.env.local.example` → `.env.local` and set:
+- `VITE_PONDER_URL` — Ponder read API (default `http://127.0.0.1:42069`)
+- `VITE_USDC_ADDRESS` — Base Sepolia USDC (default Circle testnet)
+- `VITE_WALLETCONNECT_PROJECT_ID` — `demo` works for injected MetaMask; get a free id at cloud.walletconnect.com for WalletConnect
+
+Run the app (WSL, Node 24): `npm run dev`. Click a resident → the buy/sell panel appears
+on the right; gauges (Energy/Standing + rescue countdown) render above sprites.
+Manual acceptance: `docs/SP2-acceptance-checklist.md`.
