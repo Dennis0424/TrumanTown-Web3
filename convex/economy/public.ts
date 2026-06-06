@@ -41,7 +41,6 @@ export function selectAgentStatus(
 /**
  * SP2+ 前端只读查询：返回指定 econAgentId 的经济快照。
  * 默认查 "0"（向后兼容 SP1 单居民）。
- * 前端传 econAgentId 以支持多居民仪表盘。
  */
 export const getAgentStatus = query({
   args: { econAgentId: v.optional(v.string()) },
@@ -52,5 +51,17 @@ export const getAgentStatus = query({
       .first();
     if (!econ) return null;
     return selectAgentStatus(econ.agentId as string, econ, RECOVERY_WINDOW);
+  },
+});
+
+/**
+ * SP3+ 全部居民经济快照 — PixiJS 地图仪表盘用。
+ * 返回当前世界所有 agentEconomy 行，前端按 playerId 匹配精灵。
+ */
+export const getAllAgentStatuses = query({
+  args: {},
+  handler: async (ctx): Promise<AgentStatusView[]> => {
+    const rows = await ctx.db.query('agentEconomy').collect();
+    return rows.map((r) => selectAgentStatus(r.agentId as string, r, RECOVERY_WINDOW));
   },
 });

@@ -57,11 +57,13 @@ for i in $(seq 1 15); do
   sleep 3
   STATUS=$(curl -s --noproxy '*' http://127.0.0.1:8404/healthz 2>/dev/null)
   if echo "$STATUS" | grep -q "ok"; then
-    echo "    Executor ready. Funding EOA..."
-    curl -s --noproxy '*' -X POST http://127.0.0.1:8404/actions/fund \
-      -H 'content-type: application/json' \
-      -d '{"agentId":"0","target":"eoa","asset":"usdc"}' > /dev/null 2>&1
-    echo "    EOA funded."
+    echo "    Executor ready. Funding all 5 agent EOAs..."
+    for agentId in 0 1 2 3 4; do
+      RESULT=$(curl -s --noproxy '*' -X POST http://127.0.0.1:8404/actions/fund \
+        -H 'content-type: application/json' \
+        -d "{\"agentId\":\"$agentId\",\"target\":\"eoa\",\"asset\":\"usdc\"}" 2>/dev/null)
+      echo "    Agent $agentId: $RESULT"
+    done
     break
   fi
   echo "    Waiting... ($i/15)"

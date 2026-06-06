@@ -15,8 +15,7 @@ import { PositionIndicator } from './PositionIndicator.tsx';
 import { SHOW_DEBUG_UI } from './Game.tsx';
 import { ServerGame } from '../hooks/serverGame.ts';
 import { usePonderAgent } from '../web3/usePonderAgent.ts';
-import { economyToGauge, GaugeView } from '../web3/gauge.ts';
-import { DEFAULT_AGENT_ID } from '../web3/constants.ts';
+import { economyToGauge } from '../web3/gauge.ts';
 
 export const PixiGame = (props: {
   worldId: Id<'worlds'>;
@@ -36,26 +35,36 @@ export const PixiGame = (props: {
     (p) => p.human === humanTokenIdentifier,
   )?.id;
 
-  // SP2: economy gauge data. Convex query works here (ConvexProvider is re-propagated
-  // inside <Stage> by Game.tsx). Ponder via provider-free polling hook.
-  const agentStatus = useQuery(api.economy.public.getAgentStatus);
-  const { data: standing } = usePonderAgent(DEFAULT_AGENT_ID);
-  const gaugeView: GaugeView | undefined =
-    agentStatus && standing
-      ? economyToGauge({
-          status: agentStatus.status,
-          energy: agentStatus.energy,
-          starvingPeriods: agentStatus.starvingPeriods,
-          recoveryWindow: agentStatus.recoveryWindow,
-          marketCap: BigInt(standing.marketCap || '0'),
-          alive: standing.alive,
-        })
-      : undefined;
+  // SP5: all-agent economy gauge data — one gauge per resident.
+  const allStatuses = useQuery(api.economy.public.getAllAgentStatuses) ?? [];
+  const { data: standing0 } = usePonderAgent('0');
+  const { data: standing1 } = usePonderAgent('1');
+  const { data: standing2 } = usePonderAgent('2');
+  const { data: standing3 } = usePonderAgent('3');
+  const { data: standing4 } = usePonderAgent('4');
+  const standingByEconId: Record<string, typeof standing0> = {
+    '0': standing0, '1': standing1, '2': standing2, '3': standing3, '4': standing4,
+  };
 
-  // agentStatus.playerId is a GameId<'agents'>; find its player via world.agents map
-  const gaugePlayerId = agentStatus
-    ? [...props.game.world.agents.values()].find((a) => a.id === agentStatus.playerId)?.playerId
-    : undefined;
+  // Build a map: playerId -> GaugeView using economy rows + Ponder standing
+  const gaugeMap = new Map<string, GaugeView>();
+  for (const status of allStatuses) {
+    const playerEntry = [...props.game.world.agents.values()].find(
+      (a) => a.id === status.playerId,
+    );
+    if (!playerEntry) continue;
+    const standing = standingByEconId[status.econAgentId];
+    const marketCap = BigInt(standing?.marketCap || '0');
+    const alive = standing?.alive ?? true;
+    gaugeMap.set(playerEntry.playerId, economyToGauge({
+      status: status.status,
+      energy: status.energy,
+      starvingPeriods: status.starvingPeriods,
+      recoveryWindow: status.recoveryWindow,
+      marketCap,
+      alive,
+    }));
+  }
 
   const moveTo = useSendInput(props.engineId, 'moveTo');
 
@@ -145,7 +154,7 @@ export const PixiGame = (props: {
           isViewer={p.id === humanPlayerId}
           onClick={props.setSelectedElement}
           historicalTime={props.historicalTime}
-          gauge={p.id === gaugePlayerId ? gaugeView : undefined}
+          gauge={gaugeMap.get(p.id)}
         />
       ))}
     </PixiViewport>
