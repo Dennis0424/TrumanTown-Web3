@@ -1,5 +1,5 @@
 import { ponder } from 'ponder:registry';
-import { agent, tokenIndex, trade, whisper } from 'ponder:schema';
+import { agent, tokenIndex, trade, whisper, alliance } from 'ponder:schema';
 import { AgentRegistryAbi } from '../abis/AgentRegistry';
 import { AgentTokenAbi } from '../abis/AgentToken';
 
@@ -241,6 +241,45 @@ ponder.on('InteractionHub:Whispered', async ({ event, context }) => {
     sender: event.args.sender as `0x${string}`,
     amount: event.args.amount as bigint,
     text: event.args.text as string,
+    blockNumber: event.block.number,
+    timestamp: event.block.timestamp,
+  }).onConflictDoNothing();
+});
+
+// ---------------------------------------------------------------------------
+// AllianceRegistry events (SP4)
+// ---------------------------------------------------------------------------
+ponder.on('AllianceRegistry:AllianceProposed', async ({ event, context }) => {
+  await context.db.insert(alliance).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    agentA: event.args.agentA.toString(),
+    agentB: event.args.agentB.toString(),
+    eventType: 'proposed',
+    message: event.args.message as string,
+    blockNumber: event.block.number,
+    timestamp: event.block.timestamp,
+  }).onConflictDoNothing();
+});
+
+ponder.on('AllianceRegistry:AllianceFormed', async ({ event, context }) => {
+  await context.db.insert(alliance).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    agentA: event.args.agentA.toString(),
+    agentB: event.args.agentB.toString(),
+    eventType: 'formed',
+    message: null,
+    blockNumber: event.block.number,
+    timestamp: event.block.timestamp,
+  }).onConflictDoNothing();
+});
+
+ponder.on('AllianceRegistry:AllianceDissolved', async ({ event, context }) => {
+  await context.db.insert(alliance).values({
+    id: `${event.transaction.hash}-${event.log.logIndex}`,
+    agentA: event.args.agentA.toString(),
+    agentB: event.args.agentB.toString(),
+    eventType: 'dissolved',
+    message: null,
     blockNumber: event.block.number,
     timestamp: event.block.timestamp,
   }).onConflictDoNothing();

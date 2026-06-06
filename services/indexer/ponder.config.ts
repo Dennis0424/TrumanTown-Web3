@@ -4,6 +4,7 @@ import { AgentTokenAbi } from './abis/AgentToken';
 import { LaunchpadFactoryAbi } from './abis/LaunchpadFactory';
 import { AgentRegistryAbi } from './abis/AgentRegistry';
 import { InteractionHubAbi } from './abis/InteractionHub';
+import { AllianceRegistryAbi } from './abis/AllianceRegistry';
 
 const startBlock = Number(process.env.START_BLOCK ?? '0');
 
@@ -44,6 +45,12 @@ export default createConfig({
       chain: 'baseSepolia',
       abi: InteractionHubAbi,
       address: (process.env.INTERACTION_HUB_ADDRESS ?? '0x0000000000000000000000000000000000000000') as `0x${string}`,
+      startBlock,
+    },
+    AllianceRegistry: {
+      chain: 'baseSepolia',
+      abi: AllianceRegistryAbi,
+      address: (process.env.ALLIANCE_REGISTRY_ADDRESS ?? '0x0000000000000000000000000000000000000000') as `0x${string}`,
       startBlock,
     },
   },

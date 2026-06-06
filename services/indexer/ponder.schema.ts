@@ -49,3 +49,14 @@ export const whisper = onchainTable('whisper', (t) => ({
   blockNumber: t.bigint().notNull(),
   timestamp: t.bigint().notNull(),
 }));
+
+// SP4: 结盟事件日志（append-only）
+export const alliance = onchainTable('alliance', (t) => ({
+  id: t.text().primaryKey(),       // `${txHash}-${logIndex}`
+  agentA: t.text().notNull(),
+  agentB: t.text().notNull(),
+  eventType: t.text().notNull(),   // 'proposed' | 'formed' | 'dissolved'
+  message: t.text(),               // proposed 时有值，其他为 null
+  blockNumber: t.bigint().notNull(),
+  timestamp: t.bigint().notNull(),
+}));
