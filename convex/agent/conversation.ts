@@ -9,6 +9,9 @@ import { GameId, conversationId, playerId } from '../aiTown/ids';
 import { NUM_MEMORIES_TO_SEARCH } from '../constants';
 import { buildSurvivalGoalStack, type SurvivalPerception } from '../economy/goalStack';
 import type { ChatCompletionOpts } from '../util/llm';
+import { quadraticTopK } from '../interaction/quadratic';
+import { whispersPrompt } from '../interaction/prompt';
+import { WHISPER_PROMPT_K, WHISPER_WINDOW_MS } from '../interaction/constants';
 
 const selfInternal = internal.agent.conversation;
 
@@ -19,7 +22,7 @@ export async function startConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
-  const { player, otherPlayer, agent, otherAgent, lastConversation, economy } = await ctx.runQuery(
+  const { player, otherPlayer, agent, otherAgent, lastConversation, economy, whisperVoices } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
       worldId,
@@ -55,6 +58,7 @@ export async function startConversationMessage(
     );
   }
   prompt.push(...survivalPrompt(economy));
+  prompt.push(...whispersPrompt(whisperVoices));
   const lastPrompt = `${player.name} to ${otherPlayer.name}:`;
   prompt.push(lastPrompt);
 
@@ -88,7 +92,7 @@ export async function continueConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
-  const { player, otherPlayer, conversation, agent, otherAgent, economy } = await ctx.runQuery(
+  const { player, otherPlayer, conversation, agent, otherAgent, economy, whisperVoices } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
       worldId,
@@ -115,6 +119,7 @@ export async function continueConversationMessage(
     `DO NOT greet them again. Do NOT use the word "Hey" too often. Your response should be brief and within 200 characters.`,
   );
   prompt.push(...survivalPrompt(economy));
+  prompt.push(...whispersPrompt(whisperVoices));
 
   const llmMessages: LLMMessage[] = [
     {
@@ -150,7 +155,7 @@ export async function leaveConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
-  const { player, otherPlayer, conversation, agent, otherAgent, economy } = await ctx.runQuery(
+  const { player, otherPlayer, conversation, agent, otherAgent, economy, whisperVoices } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
       worldId,
@@ -169,6 +174,7 @@ export async function leaveConversationMessage(
     `How would you like to tell them that you're leaving? Your response should be brief and within 200 characters.`,
   );
   prompt.push(...survivalPrompt(economy));
+  prompt.push(...whispersPrompt(whisperVoices));
   const llmMessages: LLMMessage[] = [
     {
       role: 'system',
@@ -348,6 +354,18 @@ export const queryPromptData = internalQuery({
       .query('agentEconomy')
       .withIndex('worldId', (q) => q.eq('worldId', args.worldId).eq('agentId', agent.id))
       .first();
+    let whisperVoices: { sender: string; text: string; weight: number }[] = [];
+    if (economy) {
+      const since = Date.now() - WHISPER_WINDOW_MS;
+      const rows = await ctx.db
+        .query('whispers')
+        .withIndex('agent_ts', (q) => q.eq('onchainAgentId', economy.econAgentId).gte('ts', since))
+        .collect();
+      whisperVoices = quadraticTopK(
+        rows.map((r) => ({ sender: r.sender, amount: r.amount, text: r.text, ts: r.ts })),
+        WHISPER_PROMPT_K,
+      );
+    }
     return {
       player: { name: playerDescription.name, ...player },
       otherPlayer: { name: otherPlayerDescription.name, ...otherPlayer },
@@ -360,6 +378,7 @@ export const queryPromptData = internalQuery({
       },
       lastConversation,
       economy,
+      whisperVoices,
     };
   },
 });
