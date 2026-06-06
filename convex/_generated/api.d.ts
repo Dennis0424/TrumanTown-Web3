@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as __mocks____generated_server from "../__mocks__/_generated/server.js";
 import type * as agent_conversation from "../agent/conversation.js";
 import type * as agent_embeddingsCache from "../agent/embeddingsCache.js";
 import type * as agent_memory from "../agent/memory.js";
@@ -37,9 +38,6 @@ import type * as aiTown_worldMap from "../aiTown/worldMap.js";
 import type * as constants from "../constants.js";
 import type * as crons from "../crons.js";
 import type * as economy_constants from "../economy/constants.js";
-import type * as interaction_constants from "../interaction/constants.js";
-import type * as interaction_tick from "../interaction/tick.js";
-import type * as interaction_whispers from "../interaction/whispers.js";
 import type * as economy_e2e from "../economy/e2e.js";
 import type * as economy_executorClient from "../economy/executorClient.js";
 import type * as economy_goalStack from "../economy/goalStack.js";
@@ -55,6 +53,15 @@ import type * as engine_abstractGame from "../engine/abstractGame.js";
 import type * as engine_historicalObject from "../engine/historicalObject.js";
 import type * as http from "../http.js";
 import type * as init from "../init.js";
+import type * as interaction_constants from "../interaction/constants.js";
+import type * as interaction_prompt from "../interaction/prompt.js";
+import type * as interaction_quadratic from "../interaction/quadratic.js";
+import type * as interaction_tick from "../interaction/tick.js";
+import type * as interaction_whispers from "../interaction/whispers.js";
+import type * as rivalry_constants from "../rivalry/constants.js";
+import type * as rivalry_prompt from "../rivalry/prompt.js";
+import type * as rivalry_rivals from "../rivalry/rivals.js";
+import type * as rivalry_tick from "../rivalry/tick.js";
 import type * as messages from "../messages.js";
 import type * as music from "../music.js";
 import type * as testing from "../testing.js";
@@ -81,6 +88,7 @@ import type * as world from "../world.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "__mocks__/_generated/server": typeof __mocks____generated_server;
   "agent/conversation": typeof agent_conversation;
   "agent/embeddingsCache": typeof agent_embeddingsCache;
   "agent/memory": typeof agent_memory;
@@ -105,9 +113,6 @@ declare const fullApi: ApiFromModules<{
   constants: typeof constants;
   crons: typeof crons;
   "economy/constants": typeof economy_constants;
-  "interaction/constants": typeof interaction_constants;
-  "interaction/tick": typeof interaction_tick;
-  "interaction/whispers": typeof interaction_whispers;
   "economy/e2e": typeof economy_e2e;
   "economy/executorClient": typeof economy_executorClient;
   "economy/goalStack": typeof economy_goalStack;
@@ -123,6 +128,15 @@ declare const fullApi: ApiFromModules<{
   "engine/historicalObject": typeof engine_historicalObject;
   http: typeof http;
   init: typeof init;
+  "interaction/constants": typeof interaction_constants;
+  "interaction/prompt": typeof interaction_prompt;
+  "interaction/quadratic": typeof interaction_quadratic;
+  "interaction/tick": typeof interaction_tick;
+  "interaction/whispers": typeof interaction_whispers;
+  "rivalry/constants": typeof rivalry_constants;
+  "rivalry/prompt": typeof rivalry_prompt;
+  "rivalry/rivals": typeof rivalry_rivals;
+  "rivalry/tick": typeof rivalry_tick;
   messages: typeof messages;
   music: typeof music;
   testing: typeof testing;

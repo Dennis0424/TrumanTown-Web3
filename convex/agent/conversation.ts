@@ -12,6 +12,7 @@ import type { ChatCompletionOpts } from '../util/llm';
 import { quadraticTopK } from '../interaction/quadratic';
 import { whispersPrompt } from '../interaction/prompt';
 import { WHISPER_PROMPT_K, WHISPER_WINDOW_MS } from '../interaction/constants';
+import { rivalryPrompt } from '../rivalry/prompt';
 
 const selfInternal = internal.agent.conversation;
 
@@ -22,7 +23,7 @@ export async function startConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
-  const { player, otherPlayer, agent, otherAgent, lastConversation, economy, whisperVoices } = await ctx.runQuery(
+  const { player, otherPlayer, agent, otherAgent, lastConversation, economy, whisperVoices, rivalVoices } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
       worldId,
@@ -59,6 +60,7 @@ export async function startConversationMessage(
   }
   prompt.push(...survivalPrompt(economy));
   prompt.push(...whispersPrompt(whisperVoices));
+  prompt.push(...rivalryPrompt(economy?.econAgentId ?? '0', rivalVoices));
   const lastPrompt = `${player.name} to ${otherPlayer.name}:`;
   prompt.push(lastPrompt);
 
@@ -92,7 +94,7 @@ export async function continueConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
-  const { player, otherPlayer, conversation, agent, otherAgent, economy, whisperVoices } = await ctx.runQuery(
+  const { player, otherPlayer, conversation, agent, otherAgent, economy, whisperVoices, rivalVoices } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
       worldId,
@@ -120,6 +122,7 @@ export async function continueConversationMessage(
   );
   prompt.push(...survivalPrompt(economy));
   prompt.push(...whispersPrompt(whisperVoices));
+  prompt.push(...rivalryPrompt(economy?.econAgentId ?? '0', rivalVoices));
 
   const llmMessages: LLMMessage[] = [
     {
@@ -155,7 +158,7 @@ export async function leaveConversationMessage(
   playerId: GameId<'players'>,
   otherPlayerId: GameId<'players'>,
 ): Promise<string> {
-  const { player, otherPlayer, conversation, agent, otherAgent, economy, whisperVoices } = await ctx.runQuery(
+  const { player, otherPlayer, conversation, agent, otherAgent, economy, whisperVoices, rivalVoices } = await ctx.runQuery(
     selfInternal.queryPromptData,
     {
       worldId,
@@ -175,6 +178,7 @@ export async function leaveConversationMessage(
   );
   prompt.push(...survivalPrompt(economy));
   prompt.push(...whispersPrompt(whisperVoices));
+  prompt.push(...rivalryPrompt(economy?.econAgentId ?? '0', rivalVoices));
   const llmMessages: LLMMessage[] = [
     {
       role: 'system',
@@ -366,6 +370,14 @@ export const queryPromptData = internalQuery({
         WHISPER_PROMPT_K,
       );
     }
+    // SP4: 博弈感知快照（gate-off 时 rivalryState 为空数组，rivalryPrompt 返回 []，无副作用）
+    let rivalVoices: { rivalAgentId: string; marketCap: string; alive: boolean; allied: boolean }[] = [];
+    if (economy) {
+      rivalVoices = await ctx.db
+        .query('rivalryState')
+        .withIndex('agent_rival', (q) => q.eq('onchainAgentId', economy.econAgentId))
+        .collect();
+    }
     return {
       player: { name: playerDescription.name, ...player },
       otherPlayer: { name: otherPlayerDescription.name, ...otherPlayer },
@@ -379,6 +391,7 @@ export const queryPromptData = internalQuery({
       lastConversation,
       economy,
       whisperVoices,
+      rivalVoices,
     };
   },
 });
