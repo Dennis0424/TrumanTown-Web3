@@ -1,5 +1,7 @@
 import { v } from 'convex/values';
-import { internalQuery, internalMutation } from '../_generated/server';
+import { internalQuery, internalMutation, mutation } from '../_generated/server';
+import { verifyMessage } from 'viem';
+import { interactionEnabled, ponderUrl } from './constants';
 
 /** Quadratic weight (sqrt of atomic USDC) → existing 0..9 memory importance scale. */
 export function mapImportance(weight: number): number {
@@ -105,5 +107,65 @@ export const writeWhisperMemory = internalMutation({
       data: { type: 'whisper', sender: args.sender, amount: args.amount },
     });
     await ctx.db.patch(args.whisperId, { memoryWritten: true });
+  },
+});
+
+/**
+ * SP4 持币耳语：免费直写，身份由 Ethereum 签名验证。
+ * 调用方：前端钱包 signMessage(text) → 传入 signature + address。
+ * 权重在 queryPromptData 里读 Ponder holders 实时算，不存在本表。
+ */
+export const submitWhisper = mutation({
+  args: {
+    onchainAgentId: v.string(),
+    text: v.string(),
+    sender: v.string(),    // 钱包地址（0x...）
+    signature: v.string(), // signMessage(text) 的签名
+  },
+  handler: async (ctx, args) => {
+    if (!interactionEnabled()) throw new Error('interaction not enabled');
+    if (args.text.length === 0 || args.text.length > 512) {
+      throw new Error('text must be 1-512 chars');
+    }
+
+    // 验证签名：确认 sender 确实签了 text
+    const valid = await verifyMessage({
+      address: args.sender as `0x${string}`,
+      message: args.text,
+      signature: args.signature as `0x${string}`,
+    });
+    if (!valid) throw new Error('invalid signature');
+
+    // 检查 TWAB > 0（有持仓才能耳语）
+    const purl = ponderUrl();
+    if (purl) {
+      try {
+        const r = await fetch(`${purl}/agents/${args.onchainAgentId}/holders`);
+        if (r.ok) {
+          const holders = (await r.json()) as Array<{ address: string; twabScore: number }>;
+          const entry = holders.find(
+            (h) => h.address.toLowerCase() === args.sender.toLowerCase(),
+          );
+          if (!entry || entry.twabScore <= 0) {
+            throw new Error('insufficient holding: must hold agent token to whisper');
+          }
+        }
+      } catch (e: any) {
+        if (e.message?.includes('insufficient holding')) throw e;
+        // Ponder 不可达时放行（降级：允许耳语，权重为 0）
+      }
+    }
+
+    // 写入 whispers 表（amount="0" 表示免费耳语）
+    const logId = `direct-${args.sender}-${Date.now()}`;
+    await ctx.db.insert('whispers', {
+      onchainAgentId: args.onchainAgentId,
+      whisperLogId: logId,
+      sender: args.sender,
+      amount: '0',
+      text: args.text,
+      ts: Date.now(),
+      memoryWritten: false,
+    });
   },
 });
