@@ -51,6 +51,13 @@ export default function PlayerDetails({
 
   const playerDescription = playerId && game.playerDescriptions.get(playerId);
 
+  // 获取选中居民的 econAgentId：world.agents 的 index 就是 econAgentId
+  const agents = [...game.world.agents.values()];
+  const selectedAgent = player ? agents.find((a) => a.playerId === player.id) : undefined;
+  const selectedEconAgentId = selectedAgent
+    ? String(agents.indexOf(selectedAgent))
+    : '0';
+
   const startConversation = useSendInput(engineId, 'startConversation');
   const acceptInvite = useSendInput(engineId, 'acceptInvite');
   const rejectInvite = useSendInput(engineId, 'rejectInvite');
@@ -236,9 +243,9 @@ export default function PlayerDetails({
           )}
         </p>
       </div>
-      {!isMe && <TradePanel />}
-      {!isMe && <WhisperPanel />}
-      {!isMe && <RivalryPanel agentId="0" />}
+      {!isMe && <TradePanel agentId={selectedEconAgentId} />}
+      {!isMe && <WhisperPanel agentId={selectedEconAgentId} />}
+      {!isMe && <RivalryPanel agentId={selectedEconAgentId} />}
       {!isMe && playerConversation && playerStatus?.kind === 'participating' && (
         <Messages
           worldId={worldId}
