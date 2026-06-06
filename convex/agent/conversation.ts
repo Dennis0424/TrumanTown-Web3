@@ -9,9 +9,9 @@ import { GameId, conversationId, playerId } from '../aiTown/ids';
 import { NUM_MEMORIES_TO_SEARCH } from '../constants';
 import { buildSurvivalGoalStack, type SurvivalPerception } from '../economy/goalStack';
 import type { ChatCompletionOpts } from '../util/llm';
-import { quadraticTopK } from '../interaction/quadratic';
+import { twabTopK } from '../interaction/twab';
 import { whispersPrompt } from '../interaction/prompt';
-import { WHISPER_PROMPT_K, WHISPER_WINDOW_MS } from '../interaction/constants';
+import { WHISPER_PROMPT_K, WHISPER_WINDOW_MS, ponderUrl } from '../interaction/constants';
 import { rivalryPrompt } from '../rivalry/prompt';
 
 const selfInternal = internal.agent.conversation;
@@ -365,8 +365,25 @@ export const queryPromptData = internalQuery({
         .query('whispers')
         .withIndex('agent_ts', (q) => q.eq('onchainAgentId', economy.econAgentId).gte('ts', since))
         .collect();
-      whisperVoices = quadraticTopK(
-        rows.map((r) => ({ sender: r.sender, amount: r.amount, text: r.text, ts: r.ts })),
+
+      // SP4: 从 Ponder 拉持币信任分（TWAB），用于加权排序
+      let holderScores: Record<string, number> = {};
+      const purl = ponderUrl();
+      if (purl) {
+        try {
+          const r = await fetch(`${purl}/agents/${economy.econAgentId}/holders`);
+          if (r.ok) {
+            const holders = (await r.json()) as Array<{ address: string; twabScore: number }>;
+            for (const h of holders) holderScores[h.address.toLowerCase()] = h.twabScore;
+          }
+        } catch {
+          // Ponder 不可达时降级：所有权重为 0（whisperVoices 将为空）
+        }
+      }
+
+      whisperVoices = twabTopK(
+        rows.map((r) => ({ sender: r.sender, text: r.text, ts: r.ts })),
+        holderScores,
         WHISPER_PROMPT_K,
       );
     }
