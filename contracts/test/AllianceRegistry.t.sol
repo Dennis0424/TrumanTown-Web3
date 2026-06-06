@@ -37,14 +37,22 @@ contract AllianceRegistryTest is Test {
         assertTrue(reg.allied(1, 0));
     }
 
-    function test_dissolve_byEitherParty() public {
-        vm.prank(eoa0);
-        reg.propose(0, 1, "x");
-        vm.prank(eoa1);
-        reg.accept(0, 1);
+    function test_dissolve_byAgentA() public {
+        vm.prank(eoa0); reg.propose(0, 1, "x");
+        vm.prank(eoa1); reg.accept(0, 1);
         vm.expectEmit(true, true, false, false);
         emit AllianceRegistry.AllianceDissolved(0, 1);
         vm.prank(eoa0);
+        reg.dissolve(0, 1);
+        assertFalse(reg.allied(0, 1));
+    }
+
+    function test_dissolve_byAgentB() public {
+        vm.prank(eoa0); reg.propose(0, 1, "x");
+        vm.prank(eoa1); reg.accept(0, 1);
+        vm.expectEmit(true, true, false, false);
+        emit AllianceRegistry.AllianceDissolved(0, 1);
+        vm.prank(eoa1);
         reg.dissolve(0, 1);
         assertFalse(reg.allied(0, 1));
     }
