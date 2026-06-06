@@ -1,28 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useAccount, useChainId, useSwitchChain } from 'wagmi';
-import { useWriteContract } from 'wagmi';
-import { waitForTransactionReceipt } from '@wagmi/core';
-import { wagmiConfig } from '../../web3/wagmi';
-import { usdcAbi, interactionHubAbi } from '../../web3/abis';
-import {
-  CHAIN_ID,
-  DEFAULT_AGENT_ID,
-  USDC_ADDRESS,
-  INTERACTION_HUB_ADDRESS,
-  PONDER_URL,
-} from '../../web3/constants';
-import { humanizeTradeError } from '../../web3/tradeError';
+import { useAccount, useChainId, useSwitchChain, useSignMessage } from 'wagmi';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { CHAIN_ID, DEFAULT_AGENT_ID, PONDER_URL } from '../../web3/constants';
 
 interface WhisperRecord {
   id: string;
   sender: string;
   text: string;
-  amount: string;
-  blockTimestamp: number;
+  ts: number;
 }
 
-type WhisperPhase = 'idle' | 'approving' | 'whispering' | 'done' | 'error';
+interface HolderRecord {
+  address: string;
+  twabScore: number;
+}
+
+type WhisperPhase = 'idle' | 'signing' | 'submitting' | 'done' | 'error';
 
 function truncateAddress(addr: string): string {
   if (!addr || addr.length < 10) return addr;
@@ -30,108 +25,114 @@ function truncateAddress(addr: string): string {
 }
 
 export function WhisperPanel({ agentId = DEFAULT_AGENT_ID }: { agentId?: string }) {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const { writeContractAsync } = useWriteContract();
+  const { signMessageAsync } = useSignMessage();
+  const submitWhisper = useMutation(api.interaction.whispers.submitWhisper);
 
   const [text, setText] = useState('');
-  const [usdcAmount, setUsdcAmount] = useState('0.05');
   const [phase, setPhase] = useState<WhisperPhase>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [whispers, setWhispers] = useState<WhisperRecord[]>([]);
+  const [recentWhispers, setRecentWhispers] = useState<WhisperRecord[]>([]);
+  const [myScore, setMyScore] = useState<number | null>(null);
 
   const mountedRef = useRef(true);
 
-  // Poll recent whispers from Ponder indexer
-  const fetchWhispers = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const r = await fetch(`${PONDER_URL}/agents/${agentId}/whispers`);
-      if (!r.ok) return;
-      const json = (await r.json()) as WhisperRecord[];
-      if (mountedRef.current) setWhispers(Array.isArray(json) ? json.slice(0, 5) : []);
+      // 拉最近耳语
+      const r1 = await fetch(`${PONDER_URL}/agents/${agentId}/whispers`);
+      if (r1.ok && mountedRef.current) {
+        const data = await r1.json();
+        setRecentWhispers(Array.isArray(data) ? data.slice(0, 5) : []);
+      }
+      // 拉自己的信任分
+      if (address) {
+        const r2 = await fetch(`${PONDER_URL}/agents/${agentId}/holders`);
+        if (r2.ok && mountedRef.current) {
+          const holders = (await r2.json()) as HolderRecord[];
+          const mine = holders.find(
+            (h) => h.address.toLowerCase() === address.toLowerCase(),
+          );
+          setMyScore(mine ? mine.twabScore : 0);
+        }
+      }
     } catch {
-      /* fail-safe: keep last snapshot */
+      /* fail-safe */
     }
-  }, [agentId]);
+  }, [agentId, address]);
 
   useEffect(() => {
     mountedRef.current = true;
-    void fetchWhispers();
-    const id = setInterval(() => void fetchWhispers(), 10_000);
+    void fetchData();
+    const id = setInterval(() => void fetchData(), 10_000);
     return () => {
       mountedRef.current = false;
       clearInterval(id);
     };
-  }, [fetchWhispers]);
+  }, [fetchData]);
 
   const wrongChain = isConnected && chainId !== CHAIN_ID;
-  const busy = phase === 'approving' || phase === 'whispering';
-  const amountAtoms = Math.round(parseFloat(usdcAmount || '0') * 1e6);
-  const canSubmit = text.trim().length > 0 && amountAtoms > 0;
+  const busy = phase === 'signing' || phase === 'submitting';
+  const canSubmit = text.trim().length > 0 && isConnected && !wrongChain;
 
   const handleWhisper = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || !address) return;
     setErrorMsg(null);
     try {
-      setPhase('approving');
-      const approveHash = await writeContractAsync({
-        address: USDC_ADDRESS,
-        abi: usdcAbi,
-        functionName: 'approve',
-        args: [INTERACTION_HUB_ADDRESS, BigInt(amountAtoms)],
+      setPhase('signing');
+      const signature = await signMessageAsync({ message: text });
+      setPhase('submitting');
+      await submitWhisper({
+        onchainAgentId: agentId,
+        text,
+        sender: address,
+        signature,
       });
-      await waitForTransactionReceipt(wagmiConfig, { hash: approveHash });
-
-      setPhase('whispering');
-      const whisperHash = await writeContractAsync({
-        address: INTERACTION_HUB_ADDRESS,
-        abi: interactionHubAbi,
-        functionName: 'whisper',
-        args: [BigInt(agentId), text, BigInt(amountAtoms)],
-      });
-      await waitForTransactionReceipt(wagmiConfig, { hash: whisperHash });
-
       setPhase('done');
       setText('');
-      void fetchWhispers();
-    } catch (e) {
+      void fetchData();
+    } catch (e: any) {
       setPhase('error');
-      setErrorMsg(humanizeTradeError(e));
+      setErrorMsg(e?.message ?? '发送失败，请重试');
     }
   };
 
   const actionLabel = (() => {
-    if (phase === 'approving') return '授权中…';
-    if (phase === 'whispering') return '发送中…';
-    return '授权 → Whisper';
+    if (phase === 'signing') return '签名中…';
+    if (phase === 'submitting') return '发送中…';
+    return '签名发送';
   })();
 
   return (
     <div className="box mt-4 bg-brown-800 text-brown-100">
-      {/* Header */}
       <div className="bg-brown-700 px-3 py-2 flex items-center justify-between">
         <h2 className="font-display text-lg tracking-wider shadow-solid">🤫 WHISPER</h2>
-        <span className="font-body text-xs text-clay-300 uppercase tracking-widest">Base Sepolia</span>
+        <span className="font-body text-xs text-clay-300 uppercase tracking-widest">免费 · 持币加权</span>
       </div>
 
       <div className="p-3 flex flex-col gap-3">
-        {/* Wallet */}
         <div className="flex justify-center">
           <ConnectButton chainStatus="icon" showBalance={false} />
         </div>
 
-        {/* Wrong Chain */}
         {wrongChain && (
           <button className="trade-chain-btn" onClick={() => switchChain({ chainId: CHAIN_ID })}>
             ⚠ 切换到 Base Sepolia
           </button>
         )}
 
-        {/* Whisper UI */}
         {isConnected && !wrongChain && (
           <>
-            {/* Text input */}
+            {/* 信任分显示 */}
+            {myScore !== null && (
+              <div className="text-xs text-clay-300 text-center">
+                你的信任分：<span className="text-brown-100 font-bold">{myScore.toFixed(0)}</span>
+                {myScore <= 0 && <span className="text-clay-500"> （需持有代币才能耳语）</span>}
+              </div>
+            )}
+
             <div className="flex flex-col gap-1">
               <span className="trade-stat-label">消息（最多 512 字符）</span>
               <textarea
@@ -145,22 +146,6 @@ export function WhisperPanel({ agentId = DEFAULT_AGENT_ID }: { agentId?: string 
               <span className="text-xs text-right text-clay-400">{text.length} / 512</span>
             </div>
 
-            {/* Amount input */}
-            <div className="flex flex-col gap-1">
-              <span className="trade-stat-label">金额（USDC）</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                inputMode="decimal"
-                className="trade-input"
-                value={usdcAmount}
-                onChange={(e) => setUsdcAmount(e.target.value)}
-                placeholder="0.05"
-              />
-            </div>
-
-            {/* Action button */}
             <button
               className="trade-action-btn buy-btn"
               disabled={busy || !canSubmit}
@@ -169,19 +154,17 @@ export function WhisperPanel({ agentId = DEFAULT_AGENT_ID }: { agentId?: string 
               {busy ? '⟳ ' : ''}{actionLabel}
             </button>
 
-            {/* Feedback */}
             {errorMsg && <p className="trade-status-err" role="alert">{errorMsg}</p>}
             {phase === 'done' && (
-              <p className="trade-status-ok" role="status">✓ Whisper 已发送</p>
+              <p className="trade-status-ok" role="status">✓ 耳语已发送</p>
             )}
           </>
         )}
 
-        {/* Recent whispers */}
-        {whispers.length > 0 && (
+        {recentWhispers.length > 0 && (
           <div className="flex flex-col gap-2 mt-1">
             <span className="trade-stat-label">最近低语</span>
-            {whispers.map((w) => (
+            {recentWhispers.map((w) => (
               <div
                 key={w.id}
                 className="bg-brown-900 px-3 py-2 text-xs"
@@ -189,7 +172,6 @@ export function WhisperPanel({ agentId = DEFAULT_AGENT_ID }: { agentId?: string 
               >
                 <div className="flex justify-between mb-1">
                   <span className="text-clay-300">{truncateAddress(w.sender)}</span>
-                  <span className="text-clay-400">{w.amount ? `${(Number(w.amount) / 1e6).toFixed(2)} USDC` : ''}</span>
                 </div>
                 <p className="text-brown-100 break-words">{w.text}</p>
               </div>
