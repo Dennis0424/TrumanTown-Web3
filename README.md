@@ -8,6 +8,14 @@
 
 ---
 
+## 📊 项目演示 PPT
+
+点击图片查看完整 15 页演示：
+
+[![TrumanTown 项目介绍 PPT](docs/pitch-preview.png)](https://dennis0424.github.io/TrumanTown-Web3)
+
+---
+
 ## What is TrumanTown?
 
 TrumanTown is a fork of [a16z's ai-town](https://github.com/a16z-infra/ai-town) extended with a full Web3 economy layer. Five AI residents (Lucky, Bob, Stella, Alice, Pete) live in the same virtual town — but now **their survival is tied to real on-chain economics**:
