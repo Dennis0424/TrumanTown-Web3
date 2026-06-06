@@ -38,3 +38,14 @@ export const trade = onchainTable('trade', (t) => ({
   blockNumber: t.bigint().notNull(),
   timestamp: t.bigint().notNull(),
 }));
+
+// Append-only whisper log (SP3): humans paying to inject context into a resident.
+export const whisper = onchainTable('whisper', (t) => ({
+  id: t.text().primaryKey(), // `${txHash}-${logIndex}`
+  agentId: t.text().notNull(),
+  sender: t.hex().notNull(),
+  amount: t.bigint().notNull(),
+  text: t.text().notNull(),
+  blockNumber: t.bigint().notNull(),
+  timestamp: t.bigint().notNull(),
+}));

@@ -3,6 +3,7 @@ import { http, getAbiItem } from 'viem';
 import { AgentTokenAbi } from './abis/AgentToken';
 import { LaunchpadFactoryAbi } from './abis/LaunchpadFactory';
 import { AgentRegistryAbi } from './abis/AgentRegistry';
+import { InteractionHubAbi } from './abis/InteractionHub';
 
 const startBlock = Number(process.env.START_BLOCK ?? '0');
 
@@ -37,6 +38,12 @@ export default createConfig({
         event: getAbiItem({ abi: LaunchpadFactoryAbi, name: 'AgentSpawned' }),
         parameter: 'token',
       }),
+      startBlock,
+    },
+    InteractionHub: {
+      chain: 'baseSepolia',
+      abi: InteractionHubAbi,
+      address: (process.env.INTERACTION_HUB_ADDRESS ?? '0x0000000000000000000000000000000000000000') as `0x${string}`,
       startBlock,
     },
   },
