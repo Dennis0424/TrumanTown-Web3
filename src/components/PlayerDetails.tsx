@@ -9,6 +9,8 @@ import { useSendInput } from '../hooks/sendInput';
 import { Player } from '../../convex/aiTown/player';
 import { GameId } from '../../convex/aiTown/ids';
 import { ServerGame } from '../hooks/serverGame';
+import { TradePanel } from './economy/TradePanel';
+import { WhisperPanel } from './economy/WhisperPanel';
 
 export default function PlayerDetails({
   worldId,
@@ -233,6 +235,8 @@ export default function PlayerDetails({
           )}
         </p>
       </div>
+      {!isMe && <TradePanel />}
+      {!isMe && <WhisperPanel />}
       {!isMe && playerConversation && playerStatus?.kind === 'participating' && (
         <Messages
           worldId={worldId}
